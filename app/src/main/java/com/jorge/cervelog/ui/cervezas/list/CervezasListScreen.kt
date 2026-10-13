@@ -148,7 +148,6 @@ private fun CervezasList(
     }
 }
 
-/** Tarjeta con la información resumida de una cerveza. */
 @Composable
 private fun CervezaItem(cerveza: Cerveza, onClick: () -> Unit) {
     Card(

@@ -32,10 +32,7 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainer = CreamContainer94,
 )
 
-/**
- * Tema de la app. No usa colores dinámicos (Material You) a propósito:
- * la identidad visual tiene que ser la misma en todos los dispositivos.
- */
+// Sin colores dinámicos para que la app se vea igual en todos los dispositivos
 @Composable
 fun CerveLogTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

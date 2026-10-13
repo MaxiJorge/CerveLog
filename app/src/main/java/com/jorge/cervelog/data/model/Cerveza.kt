@@ -3,11 +3,7 @@ package com.jorge.cervelog.data.model
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 
-/**
- * Una cerveza registrada por el usuario.
- * Se guarda en Firestore en usuarios/{uid}/cervezas/{id}.
- * Los valores por defecto son necesarios para que Firestore pueda deserializar con toObject().
- */
+// Los valores por defecto los necesita Firestore para toObject()
 data class Cerveza(
     @DocumentId val id: String = "",
     val nombre: String = "",

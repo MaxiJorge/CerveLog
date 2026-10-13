@@ -2,6 +2,7 @@ package com.jorge.cervelog.ui.cervezas.form
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -9,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.google.firebase.Timestamp
 import com.jorge.cervelog.data.model.Cerveza
 import com.jorge.cervelog.data.repository.CervezaRepository
+import com.jorge.cervelog.data.repository.UbicacionRepository
 import com.jorge.cervelog.ui.navigation.Routes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Valores tal cual los escribe el usuario; ABV e IBU son texto hasta validarlos al guardar. */
+// ABV e IBU se guardan como texto hasta validarlos
 data class CervezaForm(
     val nombre: String = "",
     val cerveceria: String = "",
@@ -26,31 +28,29 @@ data class CervezaForm(
     val puntuacion: Int = 0,
     val lugar: String = "",
     val notas: String = "",
+    val latitud: Double? = null,
+    val longitud: Double? = null,
 )
 
 data class CervezaFormUiState(
     val form: CervezaForm = CervezaForm(),
     val cargando: Boolean = false,
     val guardando: Boolean = false,
+    val obteniendoUbicacion: Boolean = false,
     val error: String? = null,
     val guardada: Boolean = false,
 )
 
-/**
- * Un mismo formulario sirve para crear y para editar (RF4):
- * si la ruta trae un id se precarga esa cerveza y al guardar se reemplaza el documento;
- * si no, se crea uno nuevo.
- */
 class CervezaFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val repository: CervezaRepository,
+    private val ubicacionRepository: UbicacionRepository,
 ) : ViewModel() {
 
     private val cervezaId: String? = savedStateHandle[Routes.ARG_CERVEZA_ID]
     val esEdicion: Boolean = cervezaId != null
 
-    // La cerveza tal como estaba en Firestore: al editar se conservan los campos que el
-    // formulario no muestra (fecha, ubicación, foto).
+    // Al editar se conservan los campos que no están en el formulario (fecha, foto)
     private var original: Cerveza? = null
 
     private val _uiState = MutableStateFlow(CervezaFormUiState(cargando = esEdicion))
@@ -80,12 +80,39 @@ class CervezaFormViewModel(
 
     fun errorMostrado() = _uiState.update { it.copy(error = null) }
 
+    fun usarUbicacionActual() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(obteniendoUbicacion = true, error = null) }
+            val ubicacion = try {
+                ubicacionRepository.obtenerUbicacionActual()
+            } catch (e: Exception) {
+                null
+            }
+            _uiState.update {
+                if (ubicacion == null) {
+                    it.copy(
+                        obteniendoUbicacion = false,
+                        error = "No pudimos obtener tu ubicación. Comprueba que esté activada.",
+                    )
+                } else {
+                    it.copy(
+                        obteniendoUbicacion = false,
+                        form = it.form.copy(latitud = ubicacion.latitude, longitud = ubicacion.longitude),
+                    )
+                }
+            }
+        }
+    }
+
+    fun permisoUbicacionDenegado() =
+        _uiState.update { it.copy(error = "Sin permiso de ubicación no podemos registrar dónde la probaste") }
+
     fun guardar() {
         val form = _uiState.value.form
         val abv = form.abv.replace(',', '.').toDoubleOrNull()
         val ibu = form.ibu.toIntOrNull()
         val errorValidacion = when {
-            // Si falló la carga, guardar crearía una cerveza nueva en vez de editar.
+            // Si falló la carga, guardar crearía una nueva en vez de editar
             esEdicion && original == null -> "No pudimos cargar la cerveza a editar"
             form.nombre.isBlank() -> "Introduce el nombre de la cerveza"
             form.puntuacion !in 1..5 -> "Elige una puntuación de 1 a 5 estrellas"
@@ -108,7 +135,9 @@ class CervezaFormViewModel(
             puntuacion = form.puntuacion,
             lugar = form.lugar.trim(),
             notas = form.notas.trim(),
-            // El listado ordena por fecha, así que toda cerveza tiene que tenerla.
+            latitud = form.latitud,
+            longitud = form.longitud,
+            // El listado ordena por fecha
             fecha = base.fecha ?: Timestamp.now(),
         )
 
@@ -125,7 +154,13 @@ class CervezaFormViewModel(
 
     companion object {
         val Factory = viewModelFactory {
-            initializer { CervezaFormViewModel(createSavedStateHandle(), CervezaRepository()) }
+            initializer {
+                CervezaFormViewModel(
+                    createSavedStateHandle(),
+                    CervezaRepository(),
+                    UbicacionRepository(checkNotNull(this[APPLICATION_KEY])),
+                )
+            }
         }
     }
 }
@@ -134,10 +169,12 @@ private fun Cerveza.toForm() = CervezaForm(
     nombre = nombre,
     cerveceria = cerveceria,
     estilo = estilo,
-    // En España el decimal se escribe con coma (5,5); al guardar se acepta coma o punto.
+    // Decimal con coma; al guardar se acepta coma o punto
     abv = abv?.toString()?.removeSuffix(".0")?.replace('.', ',').orEmpty(),
     ibu = ibu?.toString().orEmpty(),
     puntuacion = puntuacion,
     lugar = lugar,
     notas = notas,
+    latitud = latitud,
+    longitud = longitud,
 )

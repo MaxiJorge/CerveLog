@@ -12,7 +12,6 @@ class AuthRepository(
 ) {
     val currentUser: FirebaseUser? get() = auth.currentUser
 
-    /** Emite el usuario actual cada vez que cambia el estado de sesión (login / logout). */
     val authState: Flow<FirebaseUser?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
         auth.addAuthStateListener(listener)

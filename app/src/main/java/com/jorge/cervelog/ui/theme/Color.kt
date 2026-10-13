@@ -2,9 +2,6 @@ package com.jorge.cervelog.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta inspirada en la cerveza: ámbar (primario), malta tostada (secundario) y lúpulo (terciario).
-
-// Tema claro
 val Amber40 = Color(0xFF8B5000)
 val AmberContainer90 = Color(0xFFFFDCBE)
 val OnAmberContainer10 = Color(0xFF2D1600)
@@ -15,7 +12,6 @@ val Hop40 = Color(0xFF586425)
 val Cream99 = Color(0xFFFFFBFF)
 val CreamContainer94 = Color(0xFFF8EDE4)
 
-// Tema oscuro
 val Amber80 = Color(0xFFFFB870)
 val AmberContainer30 = Color(0xFF6A3B00)
 val OnAmberContainer90 = Color(0xFFFFDCBE)

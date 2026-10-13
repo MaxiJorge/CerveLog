@@ -33,11 +33,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jorge.cervelog.data.model.Cerveza
 import com.jorge.cervelog.ui.components.LoadingContent
+import com.jorge.cervelog.ui.components.MapaUbicacion
 import com.jorge.cervelog.ui.components.MessageContent
 import com.jorge.cervelog.ui.components.RatingStars
 import com.jorge.cervelog.ui.components.formatearAbv
 import com.jorge.cervelog.ui.components.formatearFecha
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +112,6 @@ private fun CervezaDetailContent(cerveza: Cerveza, modifier: Modifier = Modifier
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Encabezado
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -134,14 +133,12 @@ private fun CervezaDetailContent(cerveza: Cerveza, modifier: Modifier = Modifier
             RatingStars(cerveza.puntuacion, size = 28.dp, modifier = Modifier.padding(top = 8.dp))
         }
 
-        // Datos técnicos
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatCard("ABV", cerveza.abv?.formatearAbv() ?: "—", Modifier.weight(1f))
             StatCard("IBU", cerveza.ibu?.toString() ?: "—", Modifier.weight(1f))
             StatCard("Puntuación", "${cerveza.puntuacion}/5", Modifier.weight(1f))
         }
 
-        // Información general
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
             Column(Modifier.padding(16.dp)) {
                 InfoRow("Estilo", cerveza.estilo.ifBlank { "—" })
@@ -149,17 +146,17 @@ private fun CervezaDetailContent(cerveza: Cerveza, modifier: Modifier = Modifier
                 InfoRow("Fecha", cerveza.fecha?.formatearFecha() ?: "—")
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 InfoRow("Lugar", cerveza.lugar.ifBlank { "—" })
-                if (cerveza.latitud != null && cerveza.longitud != null) {
-                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    InfoRow(
-                        "Coordenadas",
-                        String.format(Locale.US, "%.5f, %.5f", cerveza.latitud, cerveza.longitud),
-                    )
-                }
             }
         }
 
-        // Notas de cata
+        if (cerveza.latitud != null && cerveza.longitud != null) {
+            MapaUbicacion(
+                latitud = cerveza.latitud,
+                longitud = cerveza.longitud,
+                titulo = cerveza.lugar.ifBlank { cerveza.nombre },
+            )
+        }
+
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
             Column(Modifier.padding(16.dp).fillMaxWidth()) {
                 Text(

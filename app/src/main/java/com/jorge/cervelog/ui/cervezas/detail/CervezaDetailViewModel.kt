@@ -27,7 +27,6 @@ class CervezaDetailViewModel(
     repository: CervezaRepository,
 ) : ViewModel() {
 
-    // El id llega como argumento de la ruta de navegación.
     private val cervezaId: String = checkNotNull(savedStateHandle[Routes.ARG_CERVEZA_ID])
 
     val uiState: StateFlow<CervezaDetailUiState> = repository.observarCerveza(cervezaId)

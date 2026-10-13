@@ -52,10 +52,7 @@ class AuthViewModel(
 
     fun errorMostrado() = _uiState.update { it.copy(error = null) }
 
-    /**
-     * Si hay un error de validación lo muestra sin llamar a Firebase; si no, corre la acción.
-     * No hace falta navegar al terminar: la navegación reacciona al cambio de sesión.
-     */
+    // No hace falta navegar: la navegación reacciona al cambio de sesión
     private fun ejecutar(errorValidacion: String?, accion: suspend () -> Unit) {
         if (errorValidacion != null) {
             _uiState.update { it.copy(error = errorValidacion) }

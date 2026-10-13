@@ -1,5 +1,8 @@
 package com.jorge.cervelog.ui.cervezas.form
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -38,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jorge.cervelog.ui.components.LoadingContent
+import com.jorge.cervelog.ui.components.MapaUbicacion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +54,24 @@ fun CervezaFormScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Vale tanto la ubicación precisa como la aproximada
+    val permisoUbicacionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permisos ->
+        if (permisos.values.any { it }) viewModel.usarUbicacionActual()
+        else viewModel.permisoUbicacionDenegado()
+    }
+    val pedirUbicacion = {
+        permisoUbicacionLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+        )
+    }
+
+    // Una cerveza nueva se registra donde está el usuario en ese momento
+    LaunchedEffect(Unit) {
+        if (!viewModel.esEdicion && state.form.latitud == null) pedirUbicacion()
+    }
 
     LaunchedEffect(state.guardada) {
         if (state.guardada) onGuardada()
@@ -82,7 +106,9 @@ fun CervezaFormScreen(
             CervezaFormContent(
                 form = state.form,
                 guardando = state.guardando,
+                obteniendoUbicacion = state.obteniendoUbicacion,
                 onFormChange = viewModel::onFormChange,
+                onUsarUbicacion = pedirUbicacion,
                 onGuardar = viewModel::guardar,
                 modifier = Modifier.padding(padding),
             )
@@ -94,7 +120,9 @@ fun CervezaFormScreen(
 private fun CervezaFormContent(
     form: CervezaForm,
     guardando: Boolean,
+    obteniendoUbicacion: Boolean,
     onFormChange: (CervezaForm) -> Unit,
+    onUsarUbicacion: () -> Unit,
     onGuardar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -134,6 +162,14 @@ private fun CervezaFormContent(
         )
 
         FormTextField(form.lugar, { onFormChange(form.copy(lugar = it)) }, "Lugar (bar, casa, …)", habilitado)
+        UbicacionInput(
+            latitud = form.latitud,
+            longitud = form.longitud,
+            titulo = form.lugar.ifBlank { form.nombre },
+            obteniendo = obteniendoUbicacion,
+            enabled = habilitado,
+            onUsarUbicacion = onUsarUbicacion,
+        )
         FormTextField(
             form.notas, { onFormChange(form.copy(notas = it)) }, "Notas de cata", habilitado,
             singleLine = false,
@@ -188,7 +224,32 @@ private fun FormTextField(
     )
 }
 
-/** Cinco estrellas tocables; tocar una fija la puntuación en esa cantidad. */
+@Composable
+private fun UbicacionInput(
+    latitud: Double?,
+    longitud: Double?,
+    titulo: String,
+    obteniendo: Boolean,
+    enabled: Boolean,
+    onUsarUbicacion: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onUsarUbicacion,
+        enabled = enabled && !obteniendo,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (obteniendo) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+        Text("Usar mi ubicación actual", modifier = Modifier.padding(start = 8.dp))
+    }
+    if (latitud != null && longitud != null) {
+        MapaUbicacion(latitud = latitud, longitud = longitud, titulo = titulo)
+    }
+}
+
 @Composable
 private fun RatingInput(puntuacion: Int, onChange: (Int) -> Unit, enabled: Boolean) {
     Row {

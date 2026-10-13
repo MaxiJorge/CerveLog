@@ -25,7 +25,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Puntuación de 0 a 5 representada con estrellas. */
 @Composable
 fun RatingStars(puntuacion: Int, modifier: Modifier = Modifier, size: Dp = 16.dp) {
     Row(modifier = modifier) {

@@ -24,7 +24,6 @@ object Routes {
     const val ARG_CERVEZA_ID = "cervezaId"
     const val CERVEZA_DETAIL = "cervezas/{$ARG_CERVEZA_ID}"
 
-    // Ruta aparte (no "cervezas/...") para que no se confunda con el detalle.
     // Sin id = crear; con id = editar.
     const val CERVEZA_FORM = "cerveza_form?$ARG_CERVEZA_ID={$ARG_CERVEZA_ID}"
 
@@ -32,12 +31,7 @@ object Routes {
     fun cervezaForm(id: String? = null) = if (id == null) "cerveza_form" else "cerveza_form?$ARG_CERVEZA_ID=$id"
 }
 
-/**
- * Punto de entrada de la UI. Según haya o no sesión iniciada muestra uno de dos grafos
- * de navegación separados: las pantallas principales solo existen dentro del grafo
- * autenticado, así que no se puede llegar a ellas sin iniciar sesión (RF1).
- * Al cerrar sesión el grafo principal se descarta entero, junto con su back stack.
- */
+// Dos grafos separados: sin sesión no se puede llegar a las pantallas principales
 @Composable
 fun AppNavigation() {
     val authRepository = remember { AuthRepository() }
@@ -47,7 +41,7 @@ fun AppNavigation() {
     if (uid == null) {
         AuthNavHost()
     } else {
-        // key(uid): si cambia el usuario se recrea todo el estado del grafo principal.
+        // Si cambia el usuario se recrea todo el estado del grafo
         key(uid) { MainNavHost() }
     }
 }
@@ -94,8 +88,7 @@ private fun MainNavHost() {
                 },
             ),
         ) {
-            // Al guardar se vuelve a la pantalla anterior (listado o detalle), que se
-            // actualiza sola porque escucha Firestore en tiempo real.
+            // La pantalla anterior se actualiza sola porque escucha Firestore
             CervezaFormScreen(
                 onBack = { navController.popBackStack() },
                 onGuardada = { navController.popBackStack() },

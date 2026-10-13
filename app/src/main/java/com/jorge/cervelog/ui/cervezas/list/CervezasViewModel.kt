@@ -31,7 +31,6 @@ class CervezasViewModel(
         .catch { emit(CervezasUiState.Error("No pudimos cargar tus cervezas")) }
         .stateIn(
             scope = viewModelScope,
-            // Mantiene el listener de Firestore 5 s tras salir de pantalla (p. ej. al rotar).
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = CervezasUiState.Loading,
         )

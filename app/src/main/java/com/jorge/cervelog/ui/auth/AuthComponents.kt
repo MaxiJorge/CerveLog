@@ -33,7 +33,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.jorge.cervelog.R
 
-/** Estructura común de las pantallas de login y registro: logo, título y formulario centrado. */
 @Composable
 fun AuthScaffold(
     subtitulo: String,
