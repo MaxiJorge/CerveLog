@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jorge.cervelog.data.model.Cerveza
-import com.jorge.cervelog.data.repository.AuthRepository
 import com.jorge.cervelog.data.repository.CervezaRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,10 +20,7 @@ sealed interface CervezasUiState {
 
 class CervezasViewModel(
     cervezaRepository: CervezaRepository,
-    private val authRepository: AuthRepository,
 ) : ViewModel() {
-
-    val emailUsuario: String = authRepository.currentUser?.email.orEmpty()
 
     val uiState: StateFlow<CervezasUiState> = cervezaRepository.observarCervezas()
         .map<List<Cerveza>, CervezasUiState> { CervezasUiState.Success(it) }
@@ -35,11 +31,9 @@ class CervezasViewModel(
             initialValue = CervezasUiState.Loading,
         )
 
-    fun logout() = authRepository.logout()
-
     companion object {
         val Factory = viewModelFactory {
-            initializer { CervezasViewModel(CervezaRepository(), AuthRepository()) }
+            initializer { CervezasViewModel(CervezaRepository()) }
         }
     }
 }

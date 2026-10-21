@@ -9,7 +9,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,11 +20,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jorge.cervelog.data.model.Cerveza
+import com.jorge.cervelog.ui.components.FotoCerveza
 import com.jorge.cervelog.ui.components.LoadingContent
 import com.jorge.cervelog.ui.components.MapaUbicacion
 import com.jorge.cervelog.ui.components.MessageContent
@@ -47,8 +58,21 @@ fun CervezaDetailScreen(
     viewModel: CervezaDetailViewModel = viewModel(factory = CervezaDetailViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val borrado by viewModel.borrado.collectAsStateWithLifecycle()
+    var confirmarBorrado by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(borrado.eliminada) {
+        if (borrado.eliminada) onBack()
+    }
+    LaunchedEffect(borrado.error) {
+        val texto = borrado.error ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(texto)
+        viewModel.errorMostrado()
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -65,9 +89,12 @@ fun CervezaDetailScreen(
                 },
                 actions = {
                     val cerveza = (state as? CervezaDetailUiState.Success)?.cerveza
-                    if (cerveza != null) {
+                    if (cerveza != null && !borrado.eliminando) {
                         IconButton(onClick = { onEditar(cerveza.id) }) {
                             Icon(Icons.Filled.Edit, contentDescription = "Editar")
+                        }
+                        IconButton(onClick = { confirmarBorrado = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
                         }
                     }
                 },
@@ -81,6 +108,11 @@ fun CervezaDetailScreen(
         },
     ) { padding ->
         val modifier = Modifier.padding(padding)
+        // Mientras se borra no se enseña «ya no existe» aunque el documento desaparezca
+        if (borrado.eliminando || borrado.eliminada) {
+            LoadingContent(modifier)
+            return@Scaffold
+        }
         when (val s = state) {
             CervezaDetailUiState.Loading -> LoadingContent(modifier)
             CervezaDetailUiState.NotFound -> MessageContent(
@@ -102,6 +134,23 @@ fun CervezaDetailScreen(
             is CervezaDetailUiState.Success -> CervezaDetailContent(s.cerveza, modifier)
         }
     }
+
+    if (confirmarBorrado) {
+        AlertDialog(
+            onDismissRequest = { confirmarBorrado = false },
+            title = { Text("Eliminar cerveza") },
+            text = { Text("Se borrará de tu lista y del mapa. No se puede deshacer.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarBorrado = false
+                    viewModel.eliminar()
+                }) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -116,7 +165,11 @@ private fun CervezaDetailContent(cerveza: Cerveza, modifier: Modifier = Modifier
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("🍺", style = MaterialTheme.typography.displayLarge)
+            if (cerveza.foto != null) {
+                FotoCerveza(cerveza.foto, Modifier.padding(bottom = 12.dp))
+            } else {
+                Text("🍺", style = MaterialTheme.typography.displayLarge)
+            }
             Text(
                 cerveza.nombre,
                 style = MaterialTheme.typography.headlineMedium,

@@ -1,7 +1,9 @@
 package com.jorge.cervelog.ui.cervezas.form
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,6 +44,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.maps.model.LatLng
+import com.jorge.cervelog.ui.components.FotoCerveza
 import com.jorge.cervelog.ui.components.LoadingContent
 import com.jorge.cervelog.ui.components.MapaUbicacion
 
@@ -66,6 +70,24 @@ fun CervezaFormScreen(
         permisoUbicacionLauncher.launch(
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
         )
+    }
+
+    val camaraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { hecha ->
+        if (hecha) viewModel.onFotoElegida(viewModel.uriCamara)
+    }
+    val hacerFoto = {
+        try {
+            camaraLauncher.launch(viewModel.uriCamara)
+        } catch (e: ActivityNotFoundException) {
+            viewModel.camaraNoDisponible()
+        }
+    }
+    // El selector de fotos del sistema no necesita permisos
+    val galeriaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.onFotoElegida(uri)
+    }
+    val elegirDeGaleria = {
+        galeriaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     // Una cerveza nueva se registra donde está el usuario en ese momento
@@ -107,8 +129,12 @@ fun CervezaFormScreen(
                 form = state.form,
                 guardando = state.guardando,
                 obteniendoUbicacion = state.obteniendoUbicacion,
+                procesandoFoto = state.procesandoFoto,
                 onFormChange = viewModel::onFormChange,
                 onUsarUbicacion = pedirUbicacion,
+                onElegirEnMapa = viewModel::onUbicacionElegida,
+                onHacerFoto = hacerFoto,
+                onElegirDeGaleria = elegirDeGaleria,
                 onGuardar = viewModel::guardar,
                 modifier = Modifier.padding(padding),
             )
@@ -121,8 +147,12 @@ private fun CervezaFormContent(
     form: CervezaForm,
     guardando: Boolean,
     obteniendoUbicacion: Boolean,
+    procesandoFoto: Boolean,
     onFormChange: (CervezaForm) -> Unit,
     onUsarUbicacion: () -> Unit,
+    onElegirEnMapa: (LatLng) -> Unit,
+    onHacerFoto: () -> Unit,
+    onElegirDeGaleria: () -> Unit,
     onGuardar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -161,6 +191,14 @@ private fun CervezaFormContent(
             enabled = habilitado,
         )
 
+        FotoInput(
+            foto = form.foto,
+            procesando = procesandoFoto,
+            enabled = habilitado,
+            onHacerFoto = onHacerFoto,
+            onElegirDeGaleria = onElegirDeGaleria,
+        )
+
         FormTextField(form.lugar, { onFormChange(form.copy(lugar = it)) }, "Lugar (bar, casa, …)", habilitado)
         UbicacionInput(
             latitud = form.latitud,
@@ -169,6 +207,7 @@ private fun CervezaFormContent(
             obteniendo = obteniendoUbicacion,
             enabled = habilitado,
             onUsarUbicacion = onUsarUbicacion,
+            onElegirEnMapa = onElegirEnMapa,
         )
         FormTextField(
             form.notas, { onFormChange(form.copy(notas = it)) }, "Notas de cata", habilitado,
@@ -232,6 +271,7 @@ private fun UbicacionInput(
     obteniendo: Boolean,
     enabled: Boolean,
     onUsarUbicacion: () -> Unit,
+    onElegirEnMapa: (LatLng) -> Unit,
 ) {
     OutlinedButton(
         onClick = onUsarUbicacion,
@@ -245,8 +285,47 @@ private fun UbicacionInput(
         }
         Text("Usar mi ubicación actual", modifier = Modifier.padding(start = 8.dp))
     }
-    if (latitud != null && longitud != null) {
-        MapaUbicacion(latitud = latitud, longitud = longitud, titulo = titulo)
+    Text(
+        "O toca el mapa para elegir el sitio",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    MapaUbicacion(
+        latitud = latitud,
+        longitud = longitud,
+        titulo = titulo,
+        onClick = if (enabled) onElegirEnMapa else null,
+    )
+}
+
+@Composable
+private fun FotoInput(
+    foto: String?,
+    procesando: Boolean,
+    enabled: Boolean,
+    onHacerFoto: () -> Unit,
+    onElegirDeGaleria: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedButton(
+            onClick = onHacerFoto,
+            enabled = enabled && !procesando,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("Hacer foto")
+        }
+        OutlinedButton(
+            onClick = onElegirDeGaleria,
+            enabled = enabled && !procesando,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("Elegir de la galería")
+        }
+    }
+    if (procesando) {
+        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+    } else if (foto != null) {
+        FotoCerveza(foto)
     }
 }
 

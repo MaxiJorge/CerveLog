@@ -16,6 +16,7 @@ data class Cerveza(
     val lugar: String = "",
     val latitud: Double? = null,
     val longitud: Double? = null,
-    val fotoUrl: String? = null,
+    // JPEG reducido codificado en Base64
+    val foto: String? = null,
     val fecha: Timestamp? = null,
 )

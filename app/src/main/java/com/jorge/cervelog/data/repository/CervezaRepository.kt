@@ -5,6 +5,7 @@ import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.jorge.cervelog.data.model.Cerveza
+import com.jorge.cervelog.data.model.Publicacion
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -47,9 +48,40 @@ class CervezaRepository(
     suspend fun obtenerCerveza(id: String): Cerveza? =
         cervezasDelUsuario().document(id).get().await().toObject(Cerveza::class.java)
 
+    // Si tiene ubicación, se publica también en el mapa comunitario con el mismo id.
+    // El batch hace que se guarden las dos o ninguna.
     suspend fun guardarCerveza(cerveza: Cerveza) {
         val coleccion = cervezasDelUsuario()
         val documento = if (cerveza.id.isBlank()) coleccion.document() else coleccion.document(cerveza.id)
-        documento.set(cerveza).await()
+        val batch = db.batch().set(documento, cerveza)
+
+        val usuario = auth.currentUser ?: error("No hay un usuario autenticado")
+        if (cerveza.latitud != null && cerveza.longitud != null) {
+            val publicacion = Publicacion(
+                autorUid = usuario.uid,
+                autorEmail = usuario.email.orEmpty(),
+                nombre = cerveza.nombre,
+                cerveceria = cerveza.cerveceria,
+                estilo = cerveza.estilo,
+                abv = cerveza.abv,
+                ibu = cerveza.ibu,
+                puntuacion = cerveza.puntuacion,
+                lugar = cerveza.lugar,
+                latitud = cerveza.latitud,
+                longitud = cerveza.longitud,
+                fecha = cerveza.fecha,
+            )
+            batch.set(db.collection("publicaciones").document(documento.id), publicacion)
+        }
+        batch.commit().await()
+    }
+
+    // Se borra también su publicación del mapa, si la tiene
+    suspend fun eliminarCerveza(id: String) {
+        db.batch()
+            .delete(cervezasDelUsuario().document(id))
+            .delete(db.collection("publicaciones").document(id))
+            .commit()
+            .await()
     }
 }

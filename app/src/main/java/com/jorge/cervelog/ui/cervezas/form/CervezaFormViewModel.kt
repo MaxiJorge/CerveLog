@@ -1,5 +1,6 @@
 package com.jorge.cervelog.ui.cervezas.form
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -7,11 +8,15 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.Timestamp
 import com.jorge.cervelog.data.model.Cerveza
 import com.jorge.cervelog.data.repository.CervezaRepository
+import com.jorge.cervelog.data.repository.FotoRepository
 import com.jorge.cervelog.data.repository.UbicacionRepository
 import com.jorge.cervelog.ui.navigation.Routes
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +35,7 @@ data class CervezaForm(
     val notas: String = "",
     val latitud: Double? = null,
     val longitud: Double? = null,
+    val foto: String? = null,
 )
 
 data class CervezaFormUiState(
@@ -37,6 +43,7 @@ data class CervezaFormUiState(
     val cargando: Boolean = false,
     val guardando: Boolean = false,
     val obteniendoUbicacion: Boolean = false,
+    val procesandoFoto: Boolean = false,
     val error: String? = null,
     val guardada: Boolean = false,
 )
@@ -45,12 +52,15 @@ class CervezaFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val repository: CervezaRepository,
     private val ubicacionRepository: UbicacionRepository,
+    private val fotoRepository: FotoRepository,
 ) : ViewModel() {
 
     private val cervezaId: String? = savedStateHandle[Routes.ARG_CERVEZA_ID]
     val esEdicion: Boolean = cervezaId != null
 
-    // Al editar se conservan los campos que no están en el formulario (fecha, foto)
+    val uriCamara: Uri get() = fotoRepository.uriCamara
+
+    // Al editar se conservan los campos que no están en el formulario (fecha)
     private var original: Cerveza? = null
 
     private val _uiState = MutableStateFlow(CervezaFormUiState(cargando = esEdicion))
@@ -80,11 +90,16 @@ class CervezaFormViewModel(
 
     fun errorMostrado() = _uiState.update { it.copy(error = null) }
 
+    private var lecturaUbicacion: Job? = null
+
     fun usarUbicacionActual() {
-        viewModelScope.launch {
+        lecturaUbicacion?.cancel()
+        lecturaUbicacion = viewModelScope.launch {
             _uiState.update { it.copy(obteniendoUbicacion = true, error = null) }
             val ubicacion = try {
                 ubicacionRepository.obtenerUbicacionActual()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 null
             }
@@ -104,8 +119,40 @@ class CervezaFormViewModel(
         }
     }
 
+    // Si el GPS aún estaba buscando, se cancela para que no pise el punto elegido
+    fun onUbicacionElegida(posicion: LatLng) {
+        lecturaUbicacion?.cancel()
+        _uiState.update {
+            it.copy(
+                obteniendoUbicacion = false,
+                form = it.form.copy(latitud = posicion.latitude, longitud = posicion.longitude),
+            )
+        }
+    }
+
     fun permisoUbicacionDenegado() =
         _uiState.update { it.copy(error = "Sin permiso de ubicación no podemos registrar dónde la probaste") }
+
+    fun onFotoElegida(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(procesandoFoto = true, error = null) }
+            val foto = try {
+                fotoRepository.fotoEnBase64(uri)
+            } catch (e: Exception) {
+                null
+            }
+            _uiState.update {
+                if (foto == null) {
+                    it.copy(procesandoFoto = false, error = "No pudimos cargar la foto")
+                } else {
+                    it.copy(procesandoFoto = false, form = it.form.copy(foto = foto))
+                }
+            }
+        }
+    }
+
+    fun camaraNoDisponible() =
+        _uiState.update { it.copy(error = "No hay ninguna app de cámara disponible") }
 
     fun guardar() {
         val form = _uiState.value.form
@@ -137,6 +184,7 @@ class CervezaFormViewModel(
             notas = form.notas.trim(),
             latitud = form.latitud,
             longitud = form.longitud,
+            foto = form.foto,
             // El listado ordena por fecha
             fecha = base.fecha ?: Timestamp.now(),
         )
@@ -159,6 +207,7 @@ class CervezaFormViewModel(
                     createSavedStateHandle(),
                     CervezaRepository(),
                     UbicacionRepository(checkNotNull(this[APPLICATION_KEY])),
+                    FotoRepository(checkNotNull(this[APPLICATION_KEY])),
                 )
             }
         }
@@ -177,4 +226,5 @@ private fun Cerveza.toForm() = CervezaForm(
     notas = notas,
     latitud = latitud,
     longitud = longitud,
+    foto = foto,
 )

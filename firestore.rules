@@ -8,6 +8,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Mapa comunitario: cualquier usuario con sesión lo ve,
+    // pero cada uno solo crea y modifica sus propias publicaciones.
+    match /publicaciones/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.autorUid == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.autorUid == request.auth.uid
+                    && request.resource.data.autorUid == request.auth.uid;
+      // resource == null: la cerveza no tenía ubicación y nunca se publicó
+      allow delete: if request.auth != null
+                    && (resource == null || resource.data.autorUid == request.auth.uid);
+    }
+
     // Todo lo demás queda denegado por defecto.
   }
 }
