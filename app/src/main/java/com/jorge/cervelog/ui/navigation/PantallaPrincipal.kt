@@ -1,6 +1,7 @@
 package com.jorge.cervelog.ui.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -21,18 +22,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.jorge.cervelog.ui.cervezas.list.CervezasListScreen
-import com.jorge.cervelog.ui.mapa.MapaComunitarioScreen
-import com.jorge.cervelog.ui.perfil.PerfilScreen
+import androidx.compose.ui.res.stringResource
+import com.jorge.cervelog.R
+import com.jorge.cervelog.ui.cervezas.list.CervezasListRoute
+import com.jorge.cervelog.ui.mapa.MapaComunitarioRoute
+import com.jorge.cervelog.ui.perfil.PerfilRoute
 
-private enum class Pestana(val titulo: String, val icono: ImageVector) {
-    CERVEZAS("Cervezas", Icons.AutoMirrored.Filled.List),
-    MAPA("Mapa", Icons.Filled.Place),
-    PERFIL("Perfil", Icons.Filled.Person),
+private enum class Pestana(@StringRes val titulo: Int, val icono: ImageVector) {
+    CERVEZAS(R.string.cervezas, Icons.AutoMirrored.Filled.List),
+    MAPA(R.string.mapa, Icons.Filled.Place),
+    PERFIL(R.string.perfil, Icons.Filled.Person),
 }
 
-// Las pestañas no son destinos del NavHost: así el mapa no se destruye al cambiar de pestaña.
-// Se crea la primera vez que se abre y después se queda debajo, tapado por la pestaña activa.
+// Las pestañas no son destinos del NavHost para que el mapa no se destruya al cambiar.
+// Se crea al abrirlo y después se queda debajo de la pestaña activa.
 @Composable
 fun PantallaPrincipal(
     onCervezaClick: (String) -> Unit,
@@ -41,10 +44,9 @@ fun PantallaPrincipal(
     var pestana by rememberSaveable { mutableStateOf(Pestana.CERVEZAS) }
     var mapaAbierto by rememberSaveable { mutableStateOf(false) }
 
-    // Atrás desde Mapa o Perfil vuelve a Cervezas en vez de salir de la app
     BackHandler(enabled = pestana != Pestana.CERVEZAS) { pestana = Pestana.CERVEZAS }
 
-    // Cada pantalla gestiona sus propios márgenes del sistema; aquí solo se reserva la barra
+    // Cada pantalla gestiona sus márgenes; aquí solo se reserva la barra
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
@@ -57,7 +59,7 @@ fun PantallaPrincipal(
                             if (p == Pestana.MAPA) mapaAbierto = true
                         },
                         icon = { Icon(p.icono, contentDescription = null) },
-                        label = { Text(p.titulo) },
+                        label = { Text(stringResource(p.titulo)) },
                     )
                 }
             }
@@ -68,10 +70,10 @@ fun PantallaPrincipal(
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            if (mapaAbierto) MapaComunitarioScreen(onVerMiCerveza = onCervezaClick)
+            if (mapaAbierto) MapaComunitarioRoute(onVerMiCerveza = onCervezaClick)
             when (pestana) {
-                Pestana.CERVEZAS -> CervezasListScreen(onCervezaClick, onAgregarClick)
-                Pestana.PERFIL -> PerfilScreen()
+                Pestana.CERVEZAS -> CervezasListRoute(onCervezaClick, onAgregarClick)
+                Pestana.PERFIL -> PerfilRoute()
                 Pestana.MAPA -> Unit
             }
         }

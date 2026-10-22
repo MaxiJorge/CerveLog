@@ -3,17 +3,16 @@ package com.jorge.cervelog.ui.auth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,8 +29,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import com.jorge.cervelog.R
+import com.jorge.cervelog.ui.theme.AppTheme
 
 @Composable
 fun AuthScaffold(
@@ -44,22 +43,22 @@ fun AuthScaffold(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md, Alignment.CenterVertically),
     ) {
-        Text(text = "🍺", style = MaterialTheme.typography.displayMedium)
+        Text(text = "🍺", style = AppTheme.typography.displayMedium)
         Text(
             text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineLarge,
+            style = AppTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
+            color = AppTheme.colors.primary,
         )
         Text(
             text = subtitulo,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 12.dp),
+            style = AppTheme.typography.bodyLarge,
+            color = AppTheme.colors.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = AppTheme.spacing.md),
         )
         content()
     }
@@ -85,29 +84,29 @@ fun AuthTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
         visualTransformation = if (isPassword && !visible) PasswordVisualTransformation() else VisualTransformation.None,
         trailingIcon = if (isPassword) {
-            { TextButton(onClick = { visible = !visible }) { Text(if (visible) "Ocultar" else "Ver") } }
+            { TextButton(onClick = { visible = !visible }) { Text(stringResource(if (visible) R.string.ocultar else R.string.ver)) } }
         } else null,
         modifier = Modifier.fillMaxWidth(),
     )
 }
 
 @Composable
-fun AuthPrimaryButton(text: String, loading: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        enabled = !loading,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    ) {
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        } else {
-            Text(text)
-        }
+fun SeparadorO() {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(Modifier.weight(1f))
+        Text(
+            stringResource(R.string.o),
+            style = AppTheme.typography.bodyMedium,
+            color = AppTheme.colors.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
+        )
+        HorizontalDivider(Modifier.weight(1f))
+    }
+}
+
+@Composable
+fun BotonGoogle(enabled: Boolean, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.continuar_con_google))
     }
 }

@@ -1,17 +1,18 @@
 package com.jorge.cervelog.ui.mapa
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.jorge.cervelog.data.model.Publicacion
-import com.jorge.cervelog.data.repository.AuthRepository
-import com.jorge.cervelog.data.repository.PublicacionRepository
-import com.jorge.cervelog.data.repository.UbicacionRepository
-import kotlinx.coroutines.CancellationException
+import com.jorge.cervelog.di.contenedor
+import com.jorge.cervelog.domain.model.AppResult
+import com.jorge.cervelog.domain.model.Coordenadas
+import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.domain.model.Publicacion
+import com.jorge.cervelog.domain.model.Zona
+import com.jorge.cervelog.domain.usecase.BuscarPublicacionesEnZonaUseCase
+import com.jorge.cervelog.domain.usecase.ObtenerUbicacionActualUseCase
+import com.jorge.cervelog.domain.usecase.ObtenerUsuarioActualUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,80 +23,65 @@ import kotlinx.coroutines.launch
 data class MapaComunitarioUiState(
     val publicaciones: List<Publicacion> = emptyList(),
     val cargando: Boolean = false,
-    val error: String? = null,
+    val error: DomainError? = null,
 )
 
 class MapaComunitarioViewModel(
-    private val repository: PublicacionRepository,
-    private val ubicacionRepository: UbicacionRepository,
-    authRepository: AuthRepository,
+    private val buscarEnZona: BuscarPublicacionesEnZonaUseCase,
+    private val obtenerUbicacionActual: ObtenerUbicacionActualUseCase,
+    obtenerUsuarioActual: ObtenerUsuarioActualUseCase,
 ) : ViewModel() {
 
-    val uidUsuario: String = authRepository.currentUser?.uid.orEmpty()
+    val uidUsuario: String = obtenerUsuarioActual()?.uid.orEmpty()
 
     private val _uiState = MutableStateFlow(MapaComunitarioUiState())
     val uiState: StateFlow<MapaComunitarioUiState> = _uiState.asStateFlow()
 
     private var busqueda: Job? = null
 
-    // Se acumula lo ya descargado: si al mover el mapa no llega nada nuevo,
-    // la lista no cambia y los marcadores no se vuelven a dibujar
+    // Se acumula lo descargado para no redibujar los marcadores si no llega nada nuevo
     private val descargadas = LinkedHashMap<String, Publicacion>()
 
-    // El ViewModel sobrevive al cambiar de pestaña, así que solo se centra la primera vez
-    private val _miUbicacion = MutableStateFlow<LatLng?>(null)
-    val miUbicacion: StateFlow<LatLng?> = _miUbicacion.asStateFlow()
+    // Solo se centra la primera vez, el ViewModel sobrevive al cambiar de pestaña
+    private val _miUbicacion = MutableStateFlow<Coordenadas?>(null)
+    val miUbicacion: StateFlow<Coordenadas?> = _miUbicacion.asStateFlow()
     private var ubicacionPedida = false
 
-    fun centrarEnMiUbicacion() {
+    fun onCentrarEnMiUbicacion() {
         if (ubicacionPedida) return
         ubicacionPedida = true
         viewModelScope.launch {
-            val ubicacion = try {
-                ubicacionRepository.obtenerUbicacionActual()
-            } catch (e: Exception) {
-                null
-            }
-            if (ubicacion == null) {
-                _uiState.update { it.copy(error = "No pudimos obtener tu ubicación") }
-            } else {
-                _miUbicacion.value = LatLng(ubicacion.latitude, ubicacion.longitude)
+            when (val resultado = obtenerUbicacionActual()) {
+                is AppResult.Success -> _miUbicacion.value = resultado.data
+                is AppResult.Error -> _uiState.update { it.copy(error = resultado.error) }
             }
         }
     }
 
-    // Se llama cada vez que el mapa deja de moverse
-    fun cargarZona(zona: LatLngBounds) {
+    fun onZonaVisible(zona: Zona) {
         busqueda?.cancel()
         busqueda = viewModelScope.launch {
             _uiState.update { it.copy(cargando = true) }
-            try {
-                val enZona = repository.buscarEnZona(zona).associateBy { it.id }
-                // Las que estaban en esta zona y ya no llegan se han borrado
-                descargadas.entries.removeAll { (id, p) ->
-                    id !in enZona && zona.contains(LatLng(p.latitud, p.longitud))
+            when (val resultado = buscarEnZona(zona)) {
+                is AppResult.Success -> {
+                    val enZona = resultado.data.associateBy { it.id }
+                    // Las que estaban en la zona y ya no llegan se han borrado
+                    descargadas.entries.removeAll { (id, p) -> id !in enZona && zona.contiene(p.ubicacion) }
+                    descargadas.putAll(enZona)
+                    _uiState.update { it.copy(cargando = false, publicaciones = descargadas.values.toList()) }
                 }
-                descargadas.putAll(enZona)
-                _uiState.update { it.copy(cargando = false, publicaciones = descargadas.values.toList()) }
-            } catch (e: CancellationException) {
-                // La búsqueda anterior se cancela al mover otra vez el mapa
-                throw e
-            } catch (e: Exception) {
-                _uiState.update { it.copy(cargando = false, error = "No pudimos cargar las cervezas del mapa") }
+                is AppResult.Error -> _uiState.update { it.copy(cargando = false, error = resultado.error) }
             }
         }
     }
 
-    fun errorMostrado() = _uiState.update { it.copy(error = null) }
+    fun onErrorMostrado() = _uiState.update { it.copy(error = null) }
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
-                MapaComunitarioViewModel(
-                    PublicacionRepository(),
-                    UbicacionRepository(checkNotNull(this[APPLICATION_KEY])),
-                    AuthRepository(),
-                )
+                val c = contenedor()
+                MapaComunitarioViewModel(c.buscarPublicacionesEnZona, c.obtenerUbicacionActual, c.obtenerUsuarioActual)
             }
         }
     }

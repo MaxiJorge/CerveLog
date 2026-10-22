@@ -12,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jorge.cervelog.R
 
 @Composable
 fun FotoCerveza(base64: String, modifier: Modifier = Modifier) {
@@ -23,7 +25,7 @@ fun FotoCerveza(base64: String, modifier: Modifier = Modifier) {
 
     Image(
         bitmap = imagen,
-        contentDescription = "Foto de la cerveza",
+        contentDescription = stringResource(R.string.foto_cerveza),
         contentScale = ContentScale.Crop,
         modifier = modifier
             .fillMaxWidth()

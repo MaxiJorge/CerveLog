@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val DarkColorScheme = darkColorScheme(
     primary = Amber80,
@@ -32,15 +33,17 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainer = CreamContainer94,
 )
 
-// Sin colores dinámicos para que la app se vea igual en todos los dispositivos
+// Sin colores dinámicos para que se vea igual en todos los dispositivos
 @Composable
 fun CerveLogTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalAppSpacing provides AppSpacing()) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

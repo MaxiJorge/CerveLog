@@ -12,34 +12,44 @@ import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import com.jorge.cervelog.domain.model.Coordenadas
+import com.jorge.cervelog.domain.model.Zona
 
+const val ZOOM_CIUDAD = 11f
+const val ZOOM_BARRIO = 13f
 private const val ZOOM_CALLE = 16f
-private const val ZOOM_CIUDAD = 11f
 
-// Sin ubicación todavía, el mapa empieza en Buenos Aires
-private val POSICION_SIN_UBICACION = LatLng(-34.6037, -58.3816)
+val BUENOS_AIRES = LatLng(-34.6037, -58.3816)
+
+fun Coordenadas.toLatLng() = LatLng(latitud, longitud)
+
+fun LatLng.toCoordenadas() = Coordenadas(latitude, longitude)
+
+fun LatLngBounds.toZona() = Zona(
+    sur = southwest.latitude,
+    oeste = southwest.longitude,
+    norte = northeast.latitude,
+    este = northeast.longitude,
+)
 
 @Composable
 fun MapaUbicacion(
-    latitud: Double?,
-    longitud: Double?,
+    ubicacion: Coordenadas?,
     titulo: String,
     modifier: Modifier = Modifier,
-    onClick: ((LatLng) -> Unit)? = null,
+    onClick: ((Coordenadas) -> Unit)? = null,
 ) {
-    val posicion = remember(latitud, longitud) {
-        if (latitud != null && longitud != null) LatLng(latitud, longitud) else null
-    }
+    val posicion = remember(ubicacion) { ubicacion?.toLatLng() }
     val cameraPositionState = rememberCameraPositionState {
         position = if (posicion != null) CameraPosition.fromLatLngZoom(posicion, ZOOM_CALLE)
-        else CameraPosition.fromLatLngZoom(POSICION_SIN_UBICACION, ZOOM_CIUDAD)
+        else CameraPosition.fromLatLngZoom(BUENOS_AIRES, ZOOM_CIUDAD)
     }
-    // Recentra la cámara cuando cambia la ubicación (GPS o toque en el mapa). Si se estaba
-    // viendo toda la ciudad, acerca hasta nivel de calle; si no, respeta el zoom del usuario.
+    // Si se veía toda la ciudad acerca a nivel de calle; si no, respeta el zoom
     LaunchedEffect(posicion) {
         if (posicion == null || cameraPositionState.position.target == posicion) return@LaunchedEffect
         val zoomActual = cameraPositionState.position.zoom
@@ -53,7 +63,7 @@ fun MapaUbicacion(
             .height(200.dp)
             .clip(RoundedCornerShape(12.dp)),
         cameraPositionState = cameraPositionState,
-        onMapClick = onClick,
+        onMapClick = onClick?.let { { latLng -> it(latLng.toCoordenadas()) } },
     ) {
         if (posicion != null) {
             Marker(state = rememberUpdatedMarkerState(posicion), title = titulo)

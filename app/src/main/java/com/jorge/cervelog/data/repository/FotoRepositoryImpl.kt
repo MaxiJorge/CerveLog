@@ -7,31 +7,33 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
 import android.util.Base64
-import androidx.core.content.FileProvider
+import com.jorge.cervelog.data.mapper.resultadoDe
+import com.jorge.cervelog.domain.model.AppResult
+import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.domain.repository.FotoRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.io.File
 
 private const val LADO_MAXIMO = 800
 private const val CALIDAD_JPEG = 75
 
-class FotoRepository(private val context: Context) {
+class FotoRepositoryImpl(private val context: Context) : FotoRepository {
 
-    // Fichero temporal donde la app de cámara deja la foto
-    val uriCamara: Uri by lazy {
-        val archivo = File(context.cacheDir, "fotos/camara.jpg").apply { parentFile?.mkdirs() }
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
-    }
+    override suspend fun procesarFoto(uri: String): AppResult<String> =
+        when (val resultado = resultadoDe { fotoEnBase64(Uri.parse(uri)) }) {
+            is AppResult.Success -> resultado.data?.let { AppResult.Success(it) } ?: AppResult.Error(DomainError.FotoNoValida)
+            is AppResult.Error -> AppResult.Error(DomainError.FotoNoValida)
+        }
 
-    // Firestore admite documentos de hasta 1 MB, así que la foto se reduce y se comprime antes de guardarla
-    suspend fun fotoEnBase64(uri: Uri): String? = withContext(Dispatchers.IO) {
+    // Firestore limita los documentos a 1 MB
+    private suspend fun fotoEnBase64(uri: Uri): String? = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val tamano = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, tamano) }
         if (tamano.outWidth <= 0) return@withContext null
 
-        // Se decodifica ya reducida para no cargar en memoria la foto entera
+        // Se decodifica ya reducida para no cargar la foto entera en memoria
         var muestreo = 1
         while (maxOf(tamano.outWidth, tamano.outHeight) / (muestreo * 2) >= LADO_MAXIMO) muestreo *= 2
         val original = resolver.openInputStream(uri)?.use {
@@ -51,7 +53,7 @@ class FotoRepository(private val context: Context) {
         Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
-    // La cámara guarda la imagen sin girar e indica la orientación en los datos EXIF
+    // La cámara no gira la imagen, solo indica la orientación en el EXIF
     private fun rotacionExif(uri: Uri): Int {
         val orientacion = context.contentResolver.openInputStream(uri)?.use {
             ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)

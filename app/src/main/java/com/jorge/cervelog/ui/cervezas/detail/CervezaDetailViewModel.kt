@@ -1,19 +1,22 @@
 package com.jorge.cervelog.ui.cervezas.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.jorge.cervelog.data.model.Cerveza
-import com.jorge.cervelog.data.repository.CervezaRepository
-import com.jorge.cervelog.ui.navigation.Routes
+import androidx.navigation.toRoute
+import com.jorge.cervelog.di.contenedor
+import com.jorge.cervelog.domain.model.AppResult
+import com.jorge.cervelog.domain.model.Cerveza
+import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.domain.usecase.EliminarCervezaUseCase
+import com.jorge.cervelog.domain.usecase.ObservarCervezaUseCase
+import com.jorge.cervelog.ui.navigation.DetalleCerveza
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -23,47 +26,60 @@ sealed interface CervezaDetailUiState {
     data object Loading : CervezaDetailUiState
     data class Success(val cerveza: Cerveza) : CervezaDetailUiState
     data object NotFound : CervezaDetailUiState
-    data object Error : CervezaDetailUiState
+    data class Error(val error: DomainError) : CervezaDetailUiState
 }
 
 data class BorradoUiState(
     val eliminando: Boolean = false,
     val eliminada: Boolean = false,
-    val error: String? = null,
+    val error: DomainError? = null,
 )
 
 class CervezaDetailViewModel(
-    savedStateHandle: SavedStateHandle,
-    private val repository: CervezaRepository,
+    private val cervezaId: String,
+    observarCerveza: ObservarCervezaUseCase,
+    private val eliminarCerveza: EliminarCervezaUseCase,
 ) : ViewModel() {
 
-    private val cervezaId: String = checkNotNull(savedStateHandle[Routes.ARG_CERVEZA_ID])
-
-    val uiState: StateFlow<CervezaDetailUiState> = repository.observarCerveza(cervezaId)
-        .map { if (it != null) CervezaDetailUiState.Success(it) else CervezaDetailUiState.NotFound }
-        .catch { emit(CervezaDetailUiState.Error) }
+    val uiState: StateFlow<CervezaDetailUiState> = observarCerveza(cervezaId)
+        .map { resultado ->
+            when (resultado) {
+                is AppResult.Success -> CervezaDetailUiState.Success(resultado.data)
+                is AppResult.Error ->
+                    if (resultado.error == DomainError.NoEncontrada) CervezaDetailUiState.NotFound
+                    else CervezaDetailUiState.Error(resultado.error)
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CervezaDetailUiState.Loading)
 
     private val _borrado = MutableStateFlow(BorradoUiState())
     val borrado: StateFlow<BorradoUiState> = _borrado.asStateFlow()
 
-    fun eliminar() {
+    fun onEliminar() {
+        if (_borrado.value.eliminando) return
         viewModelScope.launch {
             _borrado.update { it.copy(eliminando = true, error = null) }
-            try {
-                repository.eliminarCerveza(cervezaId)
-                _borrado.update { it.copy(eliminando = false, eliminada = true) }
-            } catch (e: Exception) {
-                _borrado.update { it.copy(eliminando = false, error = "No pudimos eliminar la cerveza") }
+            _borrado.update {
+                when (val resultado = eliminarCerveza(cervezaId)) {
+                    is AppResult.Success -> it.copy(eliminando = false, eliminada = true)
+                    is AppResult.Error -> it.copy(eliminando = false, error = resultado.error)
+                }
             }
         }
     }
 
-    fun errorMostrado() = _borrado.update { it.copy(error = null) }
+    fun onErrorMostrado() = _borrado.update { it.copy(error = null) }
 
     companion object {
         val Factory = viewModelFactory {
-            initializer { CervezaDetailViewModel(createSavedStateHandle(), CervezaRepository()) }
+            initializer {
+                val c = contenedor()
+                CervezaDetailViewModel(
+                    cervezaId = createSavedStateHandle().toRoute<DetalleCerveza>().cervezaId,
+                    observarCerveza = c.observarCerveza,
+                    eliminarCerveza = c.eliminarCerveza,
+                )
+            }
         }
     }
 }

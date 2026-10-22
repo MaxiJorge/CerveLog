@@ -1,87 +1,93 @@
 package com.jorge.cervelog.ui.perfil
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import java.util.Locale
+import com.jorge.cervelog.R
+import com.jorge.cervelog.domain.model.Estadisticas
+import com.jorge.cervelog.ui.components.AvatarCerveza
+import com.jorge.cervelog.ui.components.BarraSuperior
+import com.jorge.cervelog.ui.components.DialogoConfirmacion
+import com.jorge.cervelog.ui.components.MensajeSnackbar
+import com.jorge.cervelog.ui.components.TarjetaCifra
+import com.jorge.cervelog.ui.components.formatearDecimal
+import com.jorge.cervelog.ui.theme.AppTheme
+import com.jorge.cervelog.ui.theme.CerveLogTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PerfilRoute(viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Factory)) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    PerfilScreen(
+        state = state,
+        onReenviarCorreo = viewModel::onReenviarCorreo,
+        onErrorMostrado = viewModel::onErrorMostrado,
+        onCerrarSesion = viewModel::onCerrarSesion,
+    )
+}
+
 @Composable
 fun PerfilScreen(
-    viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Factory),
+    state: PerfilUiState,
+    onReenviarCorreo: () -> Unit,
+    onErrorMostrado: () -> Unit,
+    onCerrarSesion: () -> Unit,
 ) {
-    val estadisticas by viewModel.estadisticas.collectAsStateWithLifecycle()
     var confirmarLogout by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    MensajeSnackbar(state.error, snackbarHostState, onErrorMostrado)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mi perfil", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
-        },
+        topBar = { BarraSuperior(stringResource(R.string.mi_perfil)) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(AppTheme.spacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg),
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(96.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("🍺", style = MaterialTheme.typography.displaySmall)
-                }
+            AvatarCerveza(tamano = 96.dp, estilo = AppTheme.typography.displaySmall)
+            Text(state.email, style = AppTheme.typography.titleMedium)
+            if (!state.emailVerificado) {
+                AvisoVerificacion(state.enviandoCorreo, state.correoEnviado, onReenviarCorreo)
             }
-            Text(viewModel.emailUsuario, style = MaterialTheme.typography.titleMedium)
 
-            estadisticas?.let { e ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Dato("Cervezas", e.total.toString(), Modifier.weight(1f))
-                    Dato("En el mapa", e.enElMapa.toString(), Modifier.weight(1f))
-                    Dato(
-                        "Nota media",
-                        e.puntuacionMedia?.let { String.format(Locale.forLanguageTag("es-ES"), "%.1f", it) } ?: "–",
+            state.estadisticas?.let { e ->
+                Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
+                    TarjetaCifra(stringResource(R.string.cervezas), e.total.toString(), Modifier.weight(1f))
+                    TarjetaCifra(stringResource(R.string.en_el_mapa), e.enElMapa.toString(), Modifier.weight(1f))
+                    TarjetaCifra(
+                        stringResource(R.string.nota_media),
+                        e.puntuacionMedia?.formatearDecimal() ?: stringResource(R.string.sin_dato),
                         Modifier.weight(1f),
                     )
                 }
@@ -91,50 +97,58 @@ fun PerfilScreen(
                 onClick = { confirmarLogout = true },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = AppTheme.spacing.sm),
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("Cerrar sesión", modifier = Modifier.padding(start = 8.dp))
+                Text(stringResource(R.string.cerrar_sesion), modifier = Modifier.padding(start = AppTheme.spacing.sm))
             }
         }
     }
 
     if (confirmarLogout) {
-        AlertDialog(
-            onDismissRequest = { confirmarLogout = false },
-            title = { Text("Cerrar sesión") },
-            text = { Text("¿Quieres salir de tu cuenta?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmarLogout = false
-                    viewModel.logout()
-                }) { Text("Salir") }
+        DialogoConfirmacion(
+            titulo = stringResource(R.string.cerrar_sesion),
+            texto = stringResource(R.string.cerrar_sesion_texto),
+            textoConfirmar = stringResource(R.string.salir),
+            onConfirmar = {
+                confirmarLogout = false
+                onCerrarSesion()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmarLogout = false }) { Text("Cancelar") }
-            },
+            onCancelar = { confirmarLogout = false },
         )
     }
 }
 
 @Composable
-private fun Dato(etiqueta: String, valor: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(valor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(
-                etiqueta,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+private fun AvisoVerificacion(enviando: Boolean, enviado: Boolean, onReenviar: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            stringResource(if (enviado) R.string.correo_reenviado else R.string.correo_sin_verificar),
+            style = AppTheme.typography.bodyMedium,
+            color = AppTheme.colors.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (!enviado) {
+            TextButton(onClick = onReenviar, enabled = !enviando) {
+                Text(stringResource(R.string.reenviar_correo))
+            }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PerfilScreenPreview() {
+    CerveLogTheme {
+        PerfilScreen(
+            PerfilUiState(
+                email = "ana@aplicaciones.com",
+                emailVerificado = false,
+                estadisticas = Estadisticas(total = 4, enElMapa = 3, puntuacionMedia = 3.75),
+            ),
+            onReenviarCorreo = {},
+            onErrorMostrado = {},
+            onCerrarSesion = {},
+        )
     }
 }

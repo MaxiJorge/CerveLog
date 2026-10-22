@@ -1,7 +1,8 @@
 package com.jorge.cervelog.ui.cervezas.form
 
-import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,108 +17,122 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.gms.maps.model.LatLng
+import com.jorge.cervelog.R
+import com.jorge.cervelog.domain.model.Coordenadas
+import com.jorge.cervelog.ui.components.BarraSuperior
+import com.jorge.cervelog.ui.components.BotonConCarga
 import com.jorge.cervelog.ui.components.FotoCerveza
 import com.jorge.cervelog.ui.components.LoadingContent
 import com.jorge.cervelog.ui.components.MapaUbicacion
+import com.jorge.cervelog.ui.components.MensajeSnackbar
+import com.jorge.cervelog.ui.components.RatingStars
+import com.jorge.cervelog.ui.components.rememberPedirUbicacion
+import com.jorge.cervelog.ui.theme.AppTheme
+import com.jorge.cervelog.ui.theme.CerveLogTheme
+import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CervezaFormScreen(
+fun CervezaFormRoute(
     onBack: () -> Unit,
     onGuardada: () -> Unit,
     viewModel: CervezaFormViewModel = viewModel(factory = CervezaFormViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
-    // Vale tanto la ubicación precisa como la aproximada
-    val permisoUbicacionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { permisos ->
-        if (permisos.values.any { it }) viewModel.usarUbicacionActual()
-        else viewModel.permisoUbicacionDenegado()
-    }
-    val pedirUbicacion = {
-        permisoUbicacionLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-        )
+    val pedirUbicacion = rememberPedirUbicacion { concedido ->
+        if (concedido) viewModel.onUsarUbicacionActual() else viewModel.onPermisoUbicacionDenegado()
     }
 
+    val uriCamara = remember { uriParaCamara(context) }
     val camaraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { hecha ->
-        if (hecha) viewModel.onFotoElegida(viewModel.uriCamara)
+        if (hecha) viewModel.onFotoElegida(uriCamara.toString())
     }
-    val hacerFoto = {
-        try {
-            camaraLauncher.launch(viewModel.uriCamara)
-        } catch (e: ActivityNotFoundException) {
-            viewModel.camaraNoDisponible()
-        }
-    }
-    // El selector de fotos del sistema no necesita permisos
+    // El selector de fotos no necesita permisos
     val galeriaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) viewModel.onFotoElegida(uri)
-    }
-    val elegirDeGaleria = {
-        galeriaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        if (uri != null) viewModel.onFotoElegida(uri.toString())
     }
 
-    // Una cerveza nueva se registra donde está el usuario en ese momento
+    // Una cerveza nueva se registra donde está el usuario
     LaunchedEffect(Unit) {
-        if (!viewModel.esEdicion && state.form.latitud == null) pedirUbicacion()
+        if (!viewModel.esEdicion && state.form.ubicacion == null) pedirUbicacion()
     }
-
     LaunchedEffect(state.guardada) {
         if (state.guardada) onGuardada()
     }
-    LaunchedEffect(state.error) {
-        val texto = state.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(texto)
-        viewModel.errorMostrado()
-    }
+
+    CervezaFormScreen(
+        state = state,
+        esEdicion = viewModel.esEdicion,
+        onBack = onBack,
+        onFormChange = viewModel::onFormChange,
+        onUsarUbicacion = pedirUbicacion,
+        onElegirEnMapa = viewModel::onUbicacionElegida,
+        onHacerFoto = {
+            try {
+                camaraLauncher.launch(uriCamara)
+            } catch (e: ActivityNotFoundException) {
+                viewModel.onCamaraNoDisponible()
+            }
+        },
+        onElegirDeGaleria = {
+            galeriaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
+        onGuardar = viewModel::onGuardar,
+        onErrorMostrado = viewModel::onErrorMostrado,
+    )
+}
+
+private fun uriParaCamara(context: Context): Uri {
+    val archivo = File(context.cacheDir, "fotos/camara.jpg").apply { parentFile?.mkdirs() }
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", archivo)
+}
+
+@Composable
+fun CervezaFormScreen(
+    state: CervezaFormUiState,
+    esEdicion: Boolean,
+    onBack: () -> Unit,
+    onFormChange: (CervezaForm) -> Unit,
+    onUsarUbicacion: () -> Unit,
+    onElegirEnMapa: (Coordenadas) -> Unit,
+    onHacerFoto: () -> Unit,
+    onElegirDeGaleria: () -> Unit,
+    onGuardar: () -> Unit,
+    onErrorMostrado: () -> Unit,
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    MensajeSnackbar(state.error, snackbarHostState, onErrorMostrado)
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (viewModel.esEdicion) "Editar cerveza" else "Nueva cerveza") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+            BarraSuperior(
+                titulo = stringResource(if (esEdicion) R.string.editar_cerveza else R.string.nueva_cerveza),
+                onBack = onBack,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -126,16 +141,13 @@ fun CervezaFormScreen(
             LoadingContent(Modifier.padding(padding))
         } else {
             CervezaFormContent(
-                form = state.form,
-                guardando = state.guardando,
-                obteniendoUbicacion = state.obteniendoUbicacion,
-                procesandoFoto = state.procesandoFoto,
-                onFormChange = viewModel::onFormChange,
-                onUsarUbicacion = pedirUbicacion,
-                onElegirEnMapa = viewModel::onUbicacionElegida,
-                onHacerFoto = hacerFoto,
-                onElegirDeGaleria = elegirDeGaleria,
-                onGuardar = viewModel::guardar,
+                state = state,
+                onFormChange = onFormChange,
+                onUsarUbicacion = onUsarUbicacion,
+                onElegirEnMapa = onElegirEnMapa,
+                onHacerFoto = onHacerFoto,
+                onElegirDeGaleria = onElegirDeGaleria,
+                onGuardar = onGuardar,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -144,94 +156,76 @@ fun CervezaFormScreen(
 
 @Composable
 private fun CervezaFormContent(
-    form: CervezaForm,
-    guardando: Boolean,
-    obteniendoUbicacion: Boolean,
-    procesandoFoto: Boolean,
+    state: CervezaFormUiState,
     onFormChange: (CervezaForm) -> Unit,
     onUsarUbicacion: () -> Unit,
-    onElegirEnMapa: (LatLng) -> Unit,
+    onElegirEnMapa: (Coordenadas) -> Unit,
     onHacerFoto: () -> Unit,
     onElegirDeGaleria: () -> Unit,
     onGuardar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val habilitado = !guardando
+    val form = state.form
+    val habilitado = !state.guardando
     Column(
         modifier = modifier
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(AppTheme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
     ) {
-        FormTextField(form.nombre, { onFormChange(form.copy(nombre = it)) }, "Nombre *", habilitado)
-        FormTextField(form.cerveceria, { onFormChange(form.copy(cerveceria = it)) }, "Cervecería", habilitado)
-        FormTextField(form.estilo, { onFormChange(form.copy(estilo = it)) }, "Estilo (IPA, Stout, …)", habilitado)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FormTextField(form.nombre, { onFormChange(form.copy(nombre = it)) }, stringResource(R.string.campo_nombre), habilitado)
+        FormTextField(form.cerveceria, { onFormChange(form.copy(cerveceria = it)) }, stringResource(R.string.campo_cerveceria), habilitado)
+        FormTextField(form.estilo, { onFormChange(form.copy(estilo = it)) }, stringResource(R.string.campo_estilo), habilitado)
+        Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
             FormTextField(
-                form.abv, { onFormChange(form.copy(abv = it)) }, "ABV (%)", habilitado,
+                form.abv, { onFormChange(form.copy(abv = it)) }, stringResource(R.string.campo_abv), habilitado,
                 keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.weight(1f),
             )
             FormTextField(
-                form.ibu, { onFormChange(form.copy(ibu = it)) }, "IBU", habilitado,
+                form.ibu, { onFormChange(form.copy(ibu = it)) }, stringResource(R.string.ibu), habilitado,
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f),
             )
         }
 
         Text(
-            "Puntuación *",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.campo_puntuacion),
+            style = AppTheme.typography.titleSmall,
+            color = AppTheme.colors.onSurfaceVariant,
         )
-        RatingInput(
+        RatingStars(
             puntuacion = form.puntuacion,
+            size = 36.dp,
             onChange = { onFormChange(form.copy(puntuacion = it)) },
             enabled = habilitado,
         )
 
         FotoInput(
             foto = form.foto,
-            procesando = procesandoFoto,
+            procesando = state.procesandoFoto,
             enabled = habilitado,
             onHacerFoto = onHacerFoto,
             onElegirDeGaleria = onElegirDeGaleria,
         )
 
-        FormTextField(form.lugar, { onFormChange(form.copy(lugar = it)) }, "Lugar (bar, casa, …)", habilitado)
+        FormTextField(form.lugar, { onFormChange(form.copy(lugar = it)) }, stringResource(R.string.campo_lugar), habilitado)
         UbicacionInput(
-            latitud = form.latitud,
-            longitud = form.longitud,
+            ubicacion = form.ubicacion,
             titulo = form.lugar.ifBlank { form.nombre },
-            obteniendo = obteniendoUbicacion,
+            obteniendo = state.obteniendoUbicacion,
             enabled = habilitado,
             onUsarUbicacion = onUsarUbicacion,
             onElegirEnMapa = onElegirEnMapa,
         )
         FormTextField(
-            form.notas, { onFormChange(form.copy(notas = it)) }, "Notas de cata", habilitado,
+            form.notas, { onFormChange(form.copy(notas = it)) }, stringResource(R.string.notas_cata), habilitado,
             singleLine = false,
             imeAction = ImeAction.Default,
         )
 
-        Button(
-            onClick = onGuardar,
-            enabled = habilitado,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        ) {
-            if (guardando) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            } else {
-                Text("Guardar")
-            }
-        }
+        BotonConCarga(texto = stringResource(R.string.guardar), cargando = state.guardando, onClick = onGuardar)
     }
 }
 
@@ -265,13 +259,12 @@ private fun FormTextField(
 
 @Composable
 private fun UbicacionInput(
-    latitud: Double?,
-    longitud: Double?,
+    ubicacion: Coordenadas?,
     titulo: String,
     obteniendo: Boolean,
     enabled: Boolean,
     onUsarUbicacion: () -> Unit,
-    onElegirEnMapa: (LatLng) -> Unit,
+    onElegirEnMapa: (Coordenadas) -> Unit,
 ) {
     OutlinedButton(
         onClick = onUsarUbicacion,
@@ -283,16 +276,15 @@ private fun UbicacionInput(
         } else {
             Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
         }
-        Text("Usar mi ubicación actual", modifier = Modifier.padding(start = 8.dp))
+        Text(stringResource(R.string.usar_mi_ubicacion), modifier = Modifier.padding(start = AppTheme.spacing.sm))
     }
     Text(
-        "O toca el mapa para elegir el sitio",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        stringResource(R.string.tocar_mapa),
+        style = AppTheme.typography.bodySmall,
+        color = AppTheme.colors.onSurfaceVariant,
     )
     MapaUbicacion(
-        latitud = latitud,
-        longitud = longitud,
+        ubicacion = ubicacion,
         titulo = titulo,
         onClick = if (enabled) onElegirEnMapa else null,
     )
@@ -306,20 +298,20 @@ private fun FotoInput(
     onHacerFoto: () -> Unit,
     onElegirDeGaleria: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
         OutlinedButton(
             onClick = onHacerFoto,
             enabled = enabled && !procesando,
             modifier = Modifier.weight(1f),
         ) {
-            Text("Hacer foto")
+            Text(stringResource(R.string.hacer_foto))
         }
         OutlinedButton(
             onClick = onElegirDeGaleria,
             enabled = enabled && !procesando,
             modifier = Modifier.weight(1f),
         ) {
-            Text("Elegir de la galería")
+            Text(stringResource(R.string.elegir_galeria))
         }
     }
     if (procesando) {
@@ -329,19 +321,21 @@ private fun FotoInput(
     }
 }
 
+@Preview(showBackground = true, heightDp = 900)
 @Composable
-private fun RatingInput(puntuacion: Int, onChange: (Int) -> Unit, enabled: Boolean) {
-    Row {
-        for (valor in 1..5) {
-            IconButton(onClick = { onChange(valor) }, enabled = enabled) {
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = "$valor de 5",
-                    modifier = Modifier.size(36.dp),
-                    tint = if (valor <= puntuacion) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outlineVariant,
-                )
-            }
-        }
+private fun CervezaFormPreview() {
+    CerveLogTheme {
+        CervezaFormScreen(
+            state = CervezaFormUiState(form = CervezaForm(nombre = "Quilmes Stout", abv = "4,8", puntuacion = 3)),
+            esEdicion = false,
+            onBack = {},
+            onFormChange = {},
+            onUsarUbicacion = {},
+            onElegirEnMapa = {},
+            onHacerFoto = {},
+            onElegirDeGaleria = {},
+            onGuardar = {},
+            onErrorMostrado = {},
+        )
     }
 }

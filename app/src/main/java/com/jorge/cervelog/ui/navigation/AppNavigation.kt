@@ -10,47 +10,66 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavType
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.jorge.cervelog.data.repository.AuthRepository
+import com.jorge.cervelog.CerveLogApp
+import com.jorge.cervelog.di.contenedor
+import com.jorge.cervelog.domain.model.Usuario
+import com.jorge.cervelog.domain.usecase.ObservarSesionUseCase
+import com.jorge.cervelog.domain.usecase.ObtenerUsuarioActualUseCase
 import com.jorge.cervelog.notificaciones.AvisoCervezasCercanas
-import com.jorge.cervelog.ui.auth.LoginScreen
-import com.jorge.cervelog.ui.auth.RegisterScreen
-import com.jorge.cervelog.ui.cervezas.detail.CervezaDetailScreen
-import com.jorge.cervelog.ui.cervezas.form.CervezaFormScreen
+import com.jorge.cervelog.ui.auth.LoginRoute
+import com.jorge.cervelog.ui.auth.RegisterRoute
+import com.jorge.cervelog.ui.cervezas.detail.CervezaDetailRoute
+import com.jorge.cervelog.ui.cervezas.form.CervezaFormRoute
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.serialization.Serializable
 
-object Routes {
-    const val LOGIN = "login"
-    const val REGISTER = "register"
-    // Las pestañas Cervezas, Mapa y Perfil (ver PantallaPrincipal)
-    const val PRINCIPAL = "principal"
-    const val ARG_CERVEZA_ID = "cervezaId"
-    const val CERVEZA_DETAIL = "cervezas/{$ARG_CERVEZA_ID}"
+@Serializable data object Login
+@Serializable data object Registro
 
-    // Sin id = crear; con id = editar.
-    const val CERVEZA_FORM = "cerveza_form?$ARG_CERVEZA_ID={$ARG_CERVEZA_ID}"
+@Serializable data object Principal
+@Serializable data class DetalleCerveza(val cervezaId: String)
 
-    fun cervezaDetail(id: String) = "cervezas/$id"
-    fun cervezaForm(id: String? = null) = if (id == null) "cerveza_form" else "cerveza_form?$ARG_CERVEZA_ID=$id"
+@Serializable data class FormularioCerveza(val cervezaId: String? = null)
+
+class SesionViewModel(
+    observarSesion: ObservarSesionUseCase,
+    obtenerUsuarioActual: ObtenerUsuarioActualUseCase,
+) : ViewModel() {
+    val usuario: StateFlow<Usuario?> = observarSesion()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, obtenerUsuarioActual())
+
+    companion object {
+        val Factory = viewModelFactory {
+            initializer {
+                val c = contenedor()
+                SesionViewModel(c.observarSesion, c.obtenerUsuarioActual)
+            }
+        }
+    }
 }
 
-// Dos grafos separados: sin sesión no se puede llegar a las pantallas principales
+// Sin sesión no se puede llegar a las pantallas principales
 @Composable
-fun AppNavigation() {
-    val authRepository = remember { AuthRepository() }
-    val user by authRepository.authState.collectAsStateWithLifecycle(authRepository.currentUser)
+fun AppNavigation(viewModel: SesionViewModel = viewModel(factory = SesionViewModel.Factory)) {
+    val usuario by viewModel.usuario.collectAsStateWithLifecycle()
 
-    val uid = user?.uid
+    val uid = usuario?.uid
     if (uid == null) {
         AuthNavHost()
     } else {
-        // Si cambia el usuario se recrea todo el estado del grafo
+        // Si cambia el usuario se recrea el estado del grafo
         key(uid) { MainNavHost() }
     }
 }
@@ -58,12 +77,12 @@ fun AppNavigation() {
 @Composable
 private fun AuthNavHost() {
     val navController = rememberNavController()
-    NavHost(navController, startDestination = Routes.LOGIN) {
-        composable(Routes.LOGIN) {
-            LoginScreen(onIrARegistro = { navController.navigate(Routes.REGISTER) })
+    NavHost(navController, startDestination = Login) {
+        composable<Login> {
+            LoginRoute(onIrARegistro = { navController.navigate(Registro) })
         }
-        composable(Routes.REGISTER) {
-            RegisterScreen(onIrALogin = { navController.popBackStack() })
+        composable<Registro> {
+            RegisterRoute(onIrALogin = { navController.popBackStack() })
         }
     }
 }
@@ -72,40 +91,28 @@ private fun AuthNavHost() {
 private fun MainNavHost() {
     val navController = rememberNavController()
     AvisosCervezasCercanas()
-    // Sin el fundido por defecto: el mapa de Google parpadea si se anima su transparencia
+    // Sin transiciones porque el fundido hace parpadear el mapa
     NavHost(
         navController,
-        startDestination = Routes.PRINCIPAL,
+        startDestination = Principal,
         enterTransition = { EnterTransition.None },
         exitTransition = { ExitTransition.None },
     ) {
-        composable(Routes.PRINCIPAL) {
+        composable<Principal> {
             PantallaPrincipal(
-                onCervezaClick = { navController.navigate(Routes.cervezaDetail(it)) },
-                onAgregarClick = { navController.navigate(Routes.cervezaForm()) },
+                onCervezaClick = { navController.navigate(DetalleCerveza(it)) },
+                onAgregarClick = { navController.navigate(FormularioCerveza()) },
             )
         }
-        composable(
-            route = Routes.CERVEZA_DETAIL,
-            arguments = listOf(navArgument(Routes.ARG_CERVEZA_ID) { type = NavType.StringType }),
-        ) {
-            CervezaDetailScreen(
+        composable<DetalleCerveza> {
+            CervezaDetailRoute(
                 onBack = { navController.popBackStack() },
-                onEditar = { navController.navigate(Routes.cervezaForm(it)) },
+                onEditar = { navController.navigate(FormularioCerveza(it)) },
             )
         }
-        composable(
-            route = Routes.CERVEZA_FORM,
-            arguments = listOf(
-                navArgument(Routes.ARG_CERVEZA_ID) {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-        ) {
+        composable<FormularioCerveza> {
             // La pantalla anterior se actualiza sola porque escucha Firestore
-            CervezaFormScreen(
+            CervezaFormRoute(
                 onBack = { navController.popBackStack() },
                 onGuardada = { navController.popBackStack() },
             )
@@ -113,16 +120,15 @@ private fun MainNavHost() {
     }
 }
 
-// Mientras haya sesión se escuchan las cervezas que publican otros cerca (RF7)
 @Composable
 private fun AvisosCervezasCercanas() {
-    val context = LocalContext.current.applicationContext
-    // Desde Android 13 las notificaciones necesitan permiso; si lo deniega, no hay avisos
+    val app = LocalContext.current.applicationContext as CerveLogApp
+    // Desde Android 13 hace falta permiso; si se deniega, no hay avisos
     val permisoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permisoLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        AvisoCervezasCercanas(context).escuchar()
+        AvisoCervezasCercanas(app, app.container.observarCervezasCercanas).escuchar()
     }
 }

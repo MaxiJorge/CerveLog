@@ -2,7 +2,6 @@ package com.jorge.cervelog.ui.cervezas.list
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,83 +9,86 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.jorge.cervelog.data.model.Cerveza
+import com.jorge.cervelog.R
+import com.jorge.cervelog.domain.model.Cerveza
+import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.ui.components.AvatarCerveza
+import com.jorge.cervelog.ui.components.BarraSuperior
 import com.jorge.cervelog.ui.components.LoadingContent
 import com.jorge.cervelog.ui.components.MessageContent
 import com.jorge.cervelog.ui.components.RatingStars
+import com.jorge.cervelog.ui.components.asMessage
 import com.jorge.cervelog.ui.components.formatearAbv
 import com.jorge.cervelog.ui.components.formatearFecha
+import com.jorge.cervelog.ui.components.subtitulo
+import com.jorge.cervelog.ui.theme.AppTheme
+import com.jorge.cervelog.ui.theme.CerveLogTheme
+import java.time.Instant
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CervezasListScreen(
+fun CervezasListRoute(
     onCervezaClick: (String) -> Unit,
     onAgregarClick: () -> Unit,
     viewModel: CervezasViewModel = viewModel(factory = CervezasViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    CervezasListScreen(state, onCervezaClick, onAgregarClick)
+}
 
+@Composable
+fun CervezasListScreen(
+    state: CervezasUiState,
+    onCervezaClick: (String) -> Unit,
+    onAgregarClick: () -> Unit,
+) {
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Mis cervezas", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
-        },
+        topBar = { BarraSuperior(stringResource(R.string.mis_cervezas)) },
         floatingActionButton = {
             FloatingActionButton(onClick = onAgregarClick) {
-                Icon(Icons.Filled.Add, contentDescription = "Registrar cerveza")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.registrar_cerveza))
             }
         },
     ) { padding ->
         val modifier = Modifier.padding(padding)
-        when (val s = state) {
+        when (state) {
             CervezasUiState.Loading -> LoadingContent(modifier)
             is CervezasUiState.Error -> MessageContent(
                 emoji = "⚠️",
-                titulo = s.mensaje,
-                descripcion = "Revisa tu conexión e inténtalo de nuevo.",
+                titulo = stringResource(R.string.error_cargar_cervezas),
+                descripcion = state.error.asMessage(),
                 modifier = modifier,
             )
             is CervezasUiState.Success ->
-                if (s.cervezas.isEmpty()) {
+                if (state.cervezas.isEmpty()) {
                     MessageContent(
                         emoji = "🍻",
-                        titulo = "Todavía no has registrado ninguna cerveza",
-                        descripcion = "Pulsa el botón + para registrar la primera.",
+                        titulo = stringResource(R.string.lista_vacia_titulo),
+                        descripcion = stringResource(R.string.lista_vacia_descripcion),
                         modifier = modifier,
                     )
                 } else {
-                    CervezasList(s.cervezas, onCervezaClick, modifier)
+                    CervezasList(state.cervezas, onCervezaClick, modifier)
                 }
         }
     }
@@ -100,8 +102,8 @@ private fun CervezasList(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(AppTheme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
     ) {
         items(cervezas, key = { it.id }) { cerveza ->
             CervezaItem(cerveza, onClick = { onCervezaClick(cerveza.id) })
@@ -115,64 +117,75 @@ private fun CervezaItem(cerveza: Cerveza, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surfaceContainer),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppTheme.spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("🍺", style = MaterialTheme.typography.titleLarge)
-                }
-            }
+            AvatarCerveza(tamano = 48.dp, estilo = AppTheme.typography.titleLarge)
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = AppTheme.spacing.lg),
             ) {
                 Text(
                     cerveza.nombre,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AppTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val subtitulo = listOf(cerveza.cerveceria, cerveza.estilo)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
+                val subtitulo = subtitulo(cerveza.cerveceria, cerveza.estilo)
                 if (subtitulo.isNotEmpty()) {
                     Text(
                         subtitulo,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AppTheme.typography.bodyMedium,
+                        color = AppTheme.colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(AppTheme.spacing.xs))
                 RatingStars(cerveza.puntuacion)
             }
             Column(horizontalAlignment = Alignment.End) {
                 cerveza.abv?.let {
-                    Text(
-                        it.formatearAbv(),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    Text(it.formatearAbv(), style = AppTheme.typography.labelLarge, color = AppTheme.colors.primary)
                 }
                 cerveza.fecha?.let {
                     Text(
                         it.formatearFecha(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AppTheme.typography.labelSmall,
+                        color = AppTheme.colors.onSurfaceVariant,
                     )
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CervezasListPreview() {
+    CerveLogTheme {
+        CervezasListScreen(
+            state = CervezasUiState.Success(
+                listOf(
+                    Cerveza(id = "1", nombre = "Patagonia Amber Lager", cerveceria = "Patagonia", estilo = "Amber Lager", abv = 5.2, puntuacion = 4, fecha = Instant.now()),
+                    Cerveza(id = "2", nombre = "Antares Kölsch", estilo = "Kölsch", abv = 5.0, puntuacion = 3, fecha = Instant.now()),
+                ),
+            ),
+            onCervezaClick = {},
+            onAgregarClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CervezasListErrorPreview() {
+    CerveLogTheme {
+        CervezasListScreen(CervezasUiState.Error(DomainError.SinConexion), onCervezaClick = {}, onAgregarClick = {})
     }
 }

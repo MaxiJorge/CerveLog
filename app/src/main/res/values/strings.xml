@@ -1,3 +1,121 @@
 <resources>
     <string name="app_name">CerveLog</string>
+
+    <!-- Comunes -->
+    <string name="volver">Volver</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="guardar">Guardar</string>
+    <string name="editar">Editar</string>
+    <string name="eliminar">Eliminar</string>
+    <string name="detalle">Detalle</string>
+    <string name="sin_dato">—</string>
+    <string name="tu">Tú</string>
+    <string name="ti">Ti</string>
+
+    <!-- Pestañas -->
+    <string name="cervezas">Cervezas</string>
+    <string name="mapa">Mapa</string>
+    <string name="perfil">Perfil</string>
+
+    <!-- Inicio de sesión y registro -->
+    <string name="login_subtitulo">Tu registro personal de cervezas</string>
+    <string name="registro_subtitulo">Crea tu cuenta</string>
+    <string name="email">Email</string>
+    <string name="contrasena">Contraseña</string>
+    <string name="contrasena_minimo">Contraseña (mínimo %1$d caracteres)</string>
+    <string name="repetir_contrasena">Repetir contraseña</string>
+    <string name="iniciar_sesion">Iniciar sesión</string>
+    <string name="crear_cuenta">Crear cuenta</string>
+    <string name="ir_a_registro">¿No tienes cuenta? Regístrate</string>
+    <string name="ir_a_login">¿Ya tienes cuenta? Inicia sesión</string>
+    <string name="ver">Ver</string>
+    <string name="ocultar">Ocultar</string>
+    <string name="o">o</string>
+    <string name="continuar_con_google">Continuar con Google</string>
+
+    <!-- Listado -->
+    <string name="mis_cervezas">Mis cervezas</string>
+    <string name="registrar_cerveza">Registrar cerveza</string>
+    <string name="lista_vacia_titulo">Todavía no has registrado ninguna cerveza</string>
+    <string name="lista_vacia_descripcion">Pulsa el botón + para registrar la primera.</string>
+    <string name="error_cargar_cervezas">No pudimos cargar tus cervezas</string>
+
+    <!-- Detalle -->
+    <string name="cerveza_no_existe">Esta cerveza ya no existe</string>
+    <string name="cerveza_no_existe_descripcion">Puede que se haya eliminado.</string>
+    <string name="error_cargar_cerveza">No pudimos cargar la cerveza</string>
+    <string name="eliminar_titulo">Eliminar cerveza</string>
+    <string name="eliminar_texto">Se borrará de tu lista y del mapa. No se puede deshacer.</string>
+    <string name="abv">ABV</string>
+    <string name="ibu">IBU</string>
+    <string name="puntuacion">Puntuación</string>
+    <string name="puntuacion_de_5">%1$d/5</string>
+    <string name="estilo">Estilo</string>
+    <string name="fecha">Fecha</string>
+    <string name="lugar">Lugar</string>
+    <string name="notas_cata">Notas de cata</string>
+    <string name="sin_notas">Sin notas</string>
+    <string name="foto_cerveza">Foto de la cerveza</string>
+    <string name="estrellas_de_5">%1$d de 5</string>
+
+    <!-- Formulario -->
+    <string name="nueva_cerveza">Nueva cerveza</string>
+    <string name="editar_cerveza">Editar cerveza</string>
+    <string name="campo_nombre">Nombre *</string>
+    <string name="campo_cerveceria">Cervecería</string>
+    <string name="campo_estilo">Estilo (IPA, Stout, …)</string>
+    <string name="campo_abv" formatted="false">ABV (%)</string>
+    <string name="campo_puntuacion">Puntuación *</string>
+    <string name="campo_lugar">Lugar (bar, casa, …)</string>
+    <string name="hacer_foto">Hacer foto</string>
+    <string name="elegir_galeria">Elegir de la galería</string>
+    <string name="usar_mi_ubicacion">Usar mi ubicación actual</string>
+    <string name="tocar_mapa">O toca el mapa para elegir el sitio</string>
+
+    <!-- Mapa comunitario -->
+    <string name="mapa_cervecero">Mapa cervecero</string>
+    <string name="registrada_por">Registrada por</string>
+    <string name="ver_mi_cerveza">Ver mi cerveza</string>
+
+    <!-- Perfil -->
+    <string name="mi_perfil">Mi perfil</string>
+    <string name="en_el_mapa">En el mapa</string>
+    <string name="nota_media">Nota media</string>
+    <string name="cerrar_sesion">Cerrar sesión</string>
+    <string name="cerrar_sesion_texto">¿Quieres salir de tu cuenta?</string>
+    <string name="salir">Salir</string>
+    <string name="correo_sin_verificar">Correo sin confirmar. Te enviamos un enlace al registrarte.</string>
+    <string name="reenviar_correo">Reenviar correo de confirmación</string>
+    <string name="correo_reenviado">Te hemos enviado otro correo. Revisa también la carpeta de spam.</string>
+
+    <!-- Notificación -->
+    <string name="canal_cercanas">Cervezas cerca de ti</string>
+    <string name="canal_cercanas_descripcion">Avisa cuando alguien registra una cerveza cerca de tu ubicación</string>
+    <string name="aviso_titulo">🍺 Nueva cerveza a %1$s</string>
+    <string name="aviso_texto">%1$s ha probado %2$s %3$s</string>
+
+    <!-- Errores del dominio -->
+    <string name="error_sin_conexion">Sin conexión. Revisa tu internet e inténtalo de nuevo.</string>
+    <string name="error_sin_permiso">No tienes permiso para hacer esto.</string>
+    <string name="error_no_encontrada">Esta cerveza ya no existe.</string>
+    <string name="error_sin_sesion">Tu sesión ha caducado. Vuelve a iniciar sesión.</string>
+    <string name="error_email_no_valido">Introduce un email válido</string>
+    <string name="error_contrasena_vacia">Introduce tu contraseña</string>
+    <string name="error_contrasena_corta">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="error_contrasenas_distintas">Las contraseñas no coinciden</string>
+    <string name="error_contrasena_debil">La contraseña es demasiado débil</string>
+    <string name="error_credenciales">Email o contraseña incorrectos</string>
+    <string name="error_email_registrado">Ya existe una cuenta con ese email</string>
+    <string name="error_google_no_disponible">No se pudo iniciar sesión con Google. Comprueba que hay una cuenta de Google en el dispositivo.</string>
+    <string name="error_google_no_configurado">El inicio de sesión con Google no está configurado en Firebase</string>
+    <string name="error_demasiados_intentos">Demasiados intentos. Espera unos minutos y vuelve a probar.</string>
+    <string name="error_nombre_vacio">Introduce el nombre de la cerveza</string>
+    <string name="error_puntuacion">Elige una puntuación de 1 a 5 estrellas</string>
+    <string name="error_abv">El ABV tiene que ser un número entre 0 y 100</string>
+    <string name="error_ibu">El IBU tiene que ser un número entero entre 0 y 1000</string>
+    <string name="error_ubicacion_no_disponible">No pudimos obtener tu ubicación. Comprueba que esté activada.</string>
+    <string name="error_sin_permiso_ubicacion">Sin permiso de ubicación no podemos registrar dónde la probaste</string>
+    <string name="error_foto">No pudimos cargar la foto</string>
+    <string name="error_camara">No hay ninguna app de cámara disponible</string>
+    <string name="error_desconocido">Ha ocurrido un error inesperado. Inténtalo de nuevo.</string>
 </resources>

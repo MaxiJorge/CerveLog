@@ -3,6 +3,8 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    // Rutas de navegación tipadas
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.services)
 }
 
@@ -42,9 +44,14 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
+    implementation(project(":domain"))
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -56,10 +63,14 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.core)
     implementation(libs.androidx.compose.material.icons.core)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
     implementation(libs.firebase.firestore)
     implementation(libs.kotlinx.coroutines.play.services)
 
@@ -68,6 +79,8 @@ dependencies {
     implementation(libs.maps.compose.utils)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(testFixtures(project(":domain")))
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

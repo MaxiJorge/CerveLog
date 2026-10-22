@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "CerveLog"
 include(":app")
+include(":domain")
  

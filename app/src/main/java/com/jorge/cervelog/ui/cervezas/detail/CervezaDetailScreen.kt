@@ -8,24 +8,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,226 +27,230 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.jorge.cervelog.data.model.Cerveza
+import com.jorge.cervelog.R
+import com.jorge.cervelog.domain.model.Cerveza
+import com.jorge.cervelog.ui.components.BarraSuperior
+import com.jorge.cervelog.ui.components.DialogoConfirmacion
 import com.jorge.cervelog.ui.components.FotoCerveza
 import com.jorge.cervelog.ui.components.LoadingContent
 import com.jorge.cervelog.ui.components.MapaUbicacion
+import com.jorge.cervelog.ui.components.MensajeSnackbar
 import com.jorge.cervelog.ui.components.MessageContent
 import com.jorge.cervelog.ui.components.RatingStars
+import com.jorge.cervelog.ui.components.TarjetaCifra
+import com.jorge.cervelog.ui.components.TarjetaDatos
+import com.jorge.cervelog.ui.components.asMessage
 import com.jorge.cervelog.ui.components.formatearAbv
 import com.jorge.cervelog.ui.components.formatearFecha
+import com.jorge.cervelog.ui.theme.AppTheme
+import com.jorge.cervelog.ui.theme.CerveLogTheme
+import java.time.Instant
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CervezaDetailScreen(
+fun CervezaDetailRoute(
     onBack: () -> Unit,
     onEditar: (String) -> Unit,
     viewModel: CervezaDetailViewModel = viewModel(factory = CervezaDetailViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val borrado by viewModel.borrado.collectAsStateWithLifecycle()
-    var confirmarBorrado by rememberSaveable { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(borrado.eliminada) {
         if (borrado.eliminada) onBack()
     }
-    LaunchedEffect(borrado.error) {
-        val texto = borrado.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(texto)
-        viewModel.errorMostrado()
-    }
+
+    CervezaDetailScreen(
+        state = state,
+        borrado = borrado,
+        onBack = onBack,
+        onEditar = onEditar,
+        onEliminar = viewModel::onEliminar,
+        onErrorMostrado = viewModel::onErrorMostrado,
+    )
+}
+
+@Composable
+fun CervezaDetailScreen(
+    state: CervezaDetailUiState,
+    borrado: BorradoUiState,
+    onBack: () -> Unit,
+    onEditar: (String) -> Unit,
+    onEliminar: () -> Unit,
+    onErrorMostrado: () -> Unit,
+) {
+    var confirmarBorrado by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    MensajeSnackbar(borrado.error, snackbarHostState, onErrorMostrado)
+    val cerveza = (state as? CervezaDetailUiState.Success)?.cerveza
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        (state as? CervezaDetailUiState.Success)?.cerveza?.nombre ?: "Detalle",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                },
+            BarraSuperior(
+                titulo = cerveza?.nombre ?: stringResource(R.string.detalle),
+                onBack = onBack,
                 actions = {
-                    val cerveza = (state as? CervezaDetailUiState.Success)?.cerveza
                     if (cerveza != null && !borrado.eliminando) {
                         IconButton(onClick = { onEditar(cerveza.id) }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Editar")
+                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.editar))
                         }
                         IconButton(onClick = { confirmarBorrado = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.eliminar))
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
             )
         },
     ) { padding ->
         val modifier = Modifier.padding(padding)
-        // Mientras se borra no se enseña «ya no existe» aunque el documento desaparezca
+        // Mientras se borra no se muestra el aviso de que ya no existe
         if (borrado.eliminando || borrado.eliminada) {
             LoadingContent(modifier)
             return@Scaffold
         }
-        when (val s = state) {
+        when (state) {
             CervezaDetailUiState.Loading -> LoadingContent(modifier)
             CervezaDetailUiState.NotFound -> MessageContent(
                 emoji = "🔍",
-                titulo = "Esta cerveza ya no existe",
-                descripcion = "Puede que se haya eliminado.",
+                titulo = stringResource(R.string.cerveza_no_existe),
+                descripcion = stringResource(R.string.cerveza_no_existe_descripcion),
                 modifier = modifier,
-                accion = "Volver",
+                accion = stringResource(R.string.volver),
                 onAccion = onBack,
             )
-            CervezaDetailUiState.Error -> MessageContent(
+            is CervezaDetailUiState.Error -> MessageContent(
                 emoji = "⚠️",
-                titulo = "No pudimos cargar la cerveza",
-                descripcion = "Revisa tu conexión e inténtalo de nuevo.",
+                titulo = stringResource(R.string.error_cargar_cerveza),
+                descripcion = state.error.asMessage(),
                 modifier = modifier,
-                accion = "Volver",
+                accion = stringResource(R.string.volver),
                 onAccion = onBack,
             )
-            is CervezaDetailUiState.Success -> CervezaDetailContent(s.cerveza, modifier)
+            is CervezaDetailUiState.Success -> CervezaDetailContent(state.cerveza, modifier)
         }
     }
 
     if (confirmarBorrado) {
-        AlertDialog(
-            onDismissRequest = { confirmarBorrado = false },
-            title = { Text("Eliminar cerveza") },
-            text = { Text("Se borrará de tu lista y del mapa. No se puede deshacer.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmarBorrado = false
-                    viewModel.eliminar()
-                }) { Text("Eliminar") }
+        DialogoConfirmacion(
+            titulo = stringResource(R.string.eliminar_titulo),
+            texto = stringResource(R.string.eliminar_texto),
+            textoConfirmar = stringResource(R.string.eliminar),
+            onConfirmar = {
+                confirmarBorrado = false
+                onEliminar()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") }
-            },
+            onCancelar = { confirmarBorrado = false },
         )
     }
 }
 
 @Composable
 private fun CervezaDetailContent(cerveza: Cerveza, modifier: Modifier = Modifier) {
+    val sinDato = stringResource(R.string.sin_dato)
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(AppTheme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (cerveza.foto != null) {
-                FotoCerveza(cerveza.foto, Modifier.padding(bottom = 12.dp))
+            val foto = cerveza.foto
+            if (foto != null) {
+                FotoCerveza(foto, Modifier.padding(bottom = AppTheme.spacing.md))
             } else {
-                Text("🍺", style = MaterialTheme.typography.displayLarge)
+                Text("🍺", style = AppTheme.typography.displayLarge)
             }
             Text(
                 cerveza.nombre,
-                style = MaterialTheme.typography.headlineMedium,
+                style = AppTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
             if (cerveza.cerveceria.isNotBlank()) {
                 Text(
                     cerveza.cerveceria,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = AppTheme.typography.titleMedium,
+                    color = AppTheme.colors.onSurfaceVariant,
                 )
             }
-            RatingStars(cerveza.puntuacion, size = 28.dp, modifier = Modifier.padding(top = 8.dp))
+            RatingStars(cerveza.puntuacion, size = 28.dp, modifier = Modifier.padding(top = AppTheme.spacing.sm))
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("ABV", cerveza.abv?.formatearAbv() ?: "—", Modifier.weight(1f))
-            StatCard("IBU", cerveza.ibu?.toString() ?: "—", Modifier.weight(1f))
-            StatCard("Puntuación", "${cerveza.puntuacion}/5", Modifier.weight(1f))
-        }
-
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-            Column(Modifier.padding(16.dp)) {
-                InfoRow("Estilo", cerveza.estilo.ifBlank { "—" })
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                InfoRow("Fecha", cerveza.fecha?.formatearFecha() ?: "—")
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                InfoRow("Lugar", cerveza.lugar.ifBlank { "—" })
-            }
-        }
-
-        if (cerveza.latitud != null && cerveza.longitud != null) {
-            MapaUbicacion(
-                latitud = cerveza.latitud,
-                longitud = cerveza.longitud,
-                titulo = cerveza.lugar.ifBlank { cerveza.nombre },
+        Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)) {
+            TarjetaCifra(stringResource(R.string.abv), cerveza.abv?.formatearAbv() ?: sinDato, Modifier.weight(1f))
+            TarjetaCifra(stringResource(R.string.ibu), cerveza.ibu?.toString() ?: sinDato, Modifier.weight(1f))
+            TarjetaCifra(
+                stringResource(R.string.puntuacion),
+                stringResource(R.string.puntuacion_de_5, cerveza.puntuacion),
+                Modifier.weight(1f),
             )
         }
 
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-            Column(Modifier.padding(16.dp).fillMaxWidth()) {
+        TarjetaDatos(
+            stringResource(R.string.estilo) to cerveza.estilo.ifBlank { sinDato },
+            stringResource(R.string.fecha) to (cerveza.fecha?.formatearFecha() ?: sinDato),
+            stringResource(R.string.lugar) to cerveza.lugar.ifBlank { sinDato },
+        )
+
+        if (cerveza.ubicacion != null) {
+            MapaUbicacion(ubicacion = cerveza.ubicacion, titulo = cerveza.lugar.ifBlank { cerveza.nombre })
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = AppTheme.colors.surfaceContainer)) {
+            Column(
+                Modifier
+                    .padding(AppTheme.spacing.lg)
+                    .fillMaxWidth(),
+            ) {
                 Text(
-                    "Notas de cata",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    stringResource(R.string.notas_cata),
+                    style = AppTheme.typography.titleSmall,
+                    color = AppTheme.colors.primary,
                 )
                 Text(
-                    cerveza.notas.ifBlank { "Sin notas" },
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 4.dp),
+                    cerveza.notas.ifBlank { stringResource(R.string.sin_notas) },
+                    style = AppTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = AppTheme.spacing.xs),
                 )
             }
         }
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-private fun StatCard(label: String, valor: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(valor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.labelMedium)
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, valor: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            valor,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = 16.dp),
+private fun CervezaDetailPreview() {
+    CerveLogTheme {
+        CervezaDetailScreen(
+            state = CervezaDetailUiState.Success(
+                Cerveza(
+                    id = "1",
+                    nombre = "Patagonia Amber Lager",
+                    cerveceria = "Patagonia",
+                    estilo = "Amber Lager",
+                    abv = 5.2,
+                    ibu = 22,
+                    puntuacion = 4,
+                    lugar = "Palermo",
+                    notas = "Caramelo suave y final seco.",
+                    fecha = Instant.now(),
+                ),
+            ),
+            borrado = BorradoUiState(),
+            onBack = {},
+            onEditar = {},
+            onEliminar = {},
+            onErrorMostrado = {},
         )
     }
 }

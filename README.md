@@ -17,7 +17,7 @@ Además, las cervezas con ubicación aparecen en un **mapa comunitario** donde v
 
 | Requisito | Cómo se cumple |
 |---|---|
-| RF1 · Autenticación | Firebase Authentication con email y contraseña |
+| RF1 · Autenticación | Firebase Authentication con email y contraseña (con correo de confirmación) o con Google |
 | RF2 · Listado | Solo las cervezas del usuario, en tiempo real y ordenadas por fecha |
 | RF3 · Detalle | Foto, puntuación, datos, mapa y notas |
 | RF4 · Creación y edición | Un formulario para crear y editar, guardado en Firestore. También se puede eliminar una cerveza |
@@ -28,18 +28,29 @@ Además, las cervezas con ubicación aparecen en un **mapa comunitario** donde v
 
 ## Tecnologías
 
-Kotlin · Jetpack Compose (Material 3) · Navigation Compose · MVVM con StateFlow y corrutinas · Firebase Authentication · Cloud Firestore · Google Play Services Location · Google Maps (maps-compose).
+Kotlin · Jetpack Compose (Material 3) · Navigation Compose con rutas tipadas · MVVM con StateFlow y corrutinas sobre arquitectura limpia · Firebase Authentication · Cloud Firestore · Google Play Services Location · Google Maps (maps-compose) · JUnit + kotlinx-coroutines-test.
 
 ## Estructura
 
+Arquitectura limpia en tres capas: la interfaz y los datos dependen del dominio, y el dominio no depende de nada.
+
 ```
+domain/                 Módulo Kotlin puro: modelos, AppResult/DomainError, interfaces de repositorio y casos de uso
 app/src/main/java/com/jorge/cervelog
-├── data/model          Cerveza y Publicacion
-├── data/repository     Acceso a Firebase, ubicación y fotos
+├── di                  AppContainer: crea los repositorios y los casos de uso
+├── data                Documentos de Firestore, mappers y repositorios (Firebase, ubicación y fotos)
 ├── notificaciones      Aviso de cervezas cercanas (RF7)
 └── ui                  Pantallas (auth, cervezas, mapa, perfil), componentes, navegación y tema
 firestore.rules         Reglas de seguridad de Firestore
 ```
+
+## Tests
+
+```bash
+./gradlew test
+```
+
+Ejecuta los tests unitarios del dominio y de los ViewModels en la JVM, sin emulador ni Firebase.
 
 ## Requisitos
 
@@ -55,7 +66,12 @@ El repositorio no incluye `google-services.json` ni la API key de Google Maps po
 
 1. **Crear el proyecto de Firebase.** En la [consola de Firebase](https://console.firebase.google.com), pulsa «Añadir proyecto» (Google Analytics no hace falta).
 2. **Registrar la app Android.** Usa el nombre de paquete `com.jorge.cervelog`. Descarga `google-services.json`.
-3. **Activar Authentication.** En Authentication → Método de inicio de sesión, activa «Correo electrónico/contraseña».
+3. **Activar Authentication.** En Authentication → Método de inicio de sesión, activa «Correo electrónico/contraseña» y «Google» (elige un correo de asistencia). El correo de confirmación del registro lo envía Firebase; no hace falta configurar nada más.
+   Para que funcione «Continuar con Google», registra la huella SHA-1 de tu clave de depuración en Configuración del proyecto → Tus apps → Añadir huella digital. Cada ordenador tiene su propia clave, así que cada integrante debe añadir la suya. Para verla:
+   ```bash
+   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
+   ```
+   (o en Android Studio: Gradle → app → Tasks → android → signingReport). **Después de activar Google y añadir la huella, vuelve a descargar `google-services.json`**: el nuevo incluye el cliente OAuth que necesita la app. Sin él, el botón muestra «El inicio de sesión con Google no está configurado en Firebase».
 4. **Crear Firestore y publicar las reglas.** En Firestore Database, crea la base de datos en modo producción. En la pestaña «Reglas», pega el contenido de [`firestore.rules`](firestore.rules) y pulsa «Publicar». También se puede hacer con `firebase deploy --only firestore:rules`.
 5. **Copiar `google-services.json`** a la carpeta `app/` del proyecto.
 6. **Configurar la API key de Google Maps.**
@@ -71,6 +87,7 @@ El repositorio no incluye `google-services.json` ni la API key de Google Maps po
 ### Uso en el emulador
 
 - **Ubicación:** el emulador no tiene GPS real. Fija la posición en Extended Controls (⋯) → Location → «Set location», o con `adb emu geo fix <longitud> <latitud>` (por ejemplo, `adb emu geo fix -58.4245 -34.5890` para Palermo, Buenos Aires).
+- **Google:** el emulador necesita una imagen con Google Play y una cuenta de Google añadida en Ajustes → Cuentas.
 - **Cámara:** la cámara del emulador muestra una escena virtual. Para probar la galería, arrastra una imagen a la ventana del emulador.
 
 ### Usuarios de ejemplo
