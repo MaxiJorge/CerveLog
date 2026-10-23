@@ -12,6 +12,10 @@ class BuscarPublicacionesEnZonaUseCase(private val repository: PublicacionReposi
     suspend operator fun invoke(zona: Zona): AppResult<List<Publicacion>> = repository.buscarEnZona(zona)
 }
 
+class ObtenerPublicacionUseCase(private val repository: PublicacionRepository) {
+    suspend operator fun invoke(id: String): AppResult<Publicacion> = repository.obtenerPublicacion(id)
+}
+
 class ObtenerUbicacionActualUseCase(private val repository: UbicacionRepository) {
     suspend operator fun invoke(): AppResult<Coordenadas> = repository.obtenerUbicacionActual()
 }

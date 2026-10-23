@@ -7,11 +7,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -32,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jorge.cervelog.R
 import com.jorge.cervelog.domain.model.Estadisticas
+import com.jorge.cervelog.domain.model.Tema
 import com.jorge.cervelog.ui.components.AvatarCerveza
 import com.jorge.cervelog.ui.components.BarraSuperior
 import com.jorge.cervelog.ui.components.DialogoConfirmacion
@@ -40,12 +46,19 @@ import com.jorge.cervelog.ui.components.TarjetaCifra
 import com.jorge.cervelog.ui.components.formatearDecimal
 import com.jorge.cervelog.ui.theme.AppTheme
 import com.jorge.cervelog.ui.theme.CerveLogTheme
+import com.jorge.cervelog.ui.theme.TemaViewModel
 
 @Composable
-fun PerfilRoute(viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Factory)) {
+fun PerfilRoute(
+    viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Factory),
+    temaViewModel: TemaViewModel = viewModel(factory = TemaViewModel.Factory),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val tema by temaViewModel.tema.collectAsStateWithLifecycle()
     PerfilScreen(
         state = state,
+        tema = tema,
+        onTemaElegido = temaViewModel::onTemaElegido,
         onReenviarCorreo = viewModel::onReenviarCorreo,
         onErrorMostrado = viewModel::onErrorMostrado,
         onCerrarSesion = viewModel::onCerrarSesion,
@@ -55,6 +68,8 @@ fun PerfilRoute(viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel
 @Composable
 fun PerfilScreen(
     state: PerfilUiState,
+    tema: Tema,
+    onTemaElegido: (Tema) -> Unit,
     onReenviarCorreo: () -> Unit,
     onErrorMostrado: () -> Unit,
     onCerrarSesion: () -> Unit,
@@ -71,6 +86,7 @@ fun PerfilScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(AppTheme.spacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg),
@@ -92,6 +108,8 @@ fun PerfilScreen(
                     )
                 }
             }
+
+            SelectorTema(tema, onTemaElegido)
 
             OutlinedButton(
                 onClick = { confirmarLogout = true },
@@ -116,6 +134,29 @@ fun PerfilScreen(
             },
             onCancelar = { confirmarLogout = false },
         )
+    }
+}
+
+@Composable
+private fun SelectorTema(tema: Tema, onTemaElegido: (Tema) -> Unit) {
+    val opciones = listOf(
+        Tema.SISTEMA to R.string.tema_sistema,
+        Tema.CLARO to R.string.tema_claro,
+        Tema.OSCURO to R.string.tema_oscuro,
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+        Text(stringResource(R.string.apariencia), style = AppTheme.typography.titleSmall, color = AppTheme.colors.primary)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            opciones.forEachIndexed { i, (opcion, texto) ->
+                SegmentedButton(
+                    selected = tema == opcion,
+                    onClick = { onTemaElegido(opcion) },
+                    shape = SegmentedButtonDefaults.itemShape(index = i, count = opciones.size),
+                ) {
+                    Text(stringResource(texto))
+                }
+            }
+        }
     }
 }
 
@@ -146,6 +187,8 @@ private fun PerfilScreenPreview() {
                 emailVerificado = false,
                 estadisticas = Estadisticas(total = 4, enElMapa = 3, puntuacionMedia = 3.75),
             ),
+            tema = Tema.SISTEMA,
+            onTemaElegido = {},
             onReenviarCorreo = {},
             onErrorMostrado = {},
             onCerrarSesion = {},

@@ -21,6 +21,9 @@ data class AppSpacing(
 
 val LocalAppSpacing = staticCompositionLocalOf { AppSpacing() }
 
+// Puede no coincidir con el sistema si se ha elegido el tema a mano en el perfil
+val LocalTemaOscuro = staticCompositionLocalOf { false }
+
 object AppTheme {
     val spacing: AppSpacing
         @Composable @ReadOnlyComposable get() = LocalAppSpacing.current
@@ -30,4 +33,7 @@ object AppTheme {
 
     val typography: Typography
         @Composable @ReadOnlyComposable get() = MaterialTheme.typography
+
+    val oscuro: Boolean
+        @Composable @ReadOnlyComposable get() = LocalTemaOscuro.current
 }

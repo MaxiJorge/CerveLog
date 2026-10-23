@@ -10,6 +10,8 @@ interface PublicacionRepository {
 
     suspend fun buscarEnZona(zona: Zona): AppResult<List<Publicacion>>
 
+    suspend fun obtenerPublicacion(id: String): AppResult<Publicacion>
+
     // En tiempo real; si la escucha falla, el flujo termina
     fun observarNuevas(desde: Instant): Flow<Publicacion>
 }

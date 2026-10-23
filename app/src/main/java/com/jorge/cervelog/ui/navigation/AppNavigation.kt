@@ -30,6 +30,7 @@ import com.jorge.cervelog.ui.auth.LoginRoute
 import com.jorge.cervelog.ui.auth.RegisterRoute
 import com.jorge.cervelog.ui.cervezas.detail.CervezaDetailRoute
 import com.jorge.cervelog.ui.cervezas.form.CervezaFormRoute
+import com.jorge.cervelog.ui.mapa.detail.PublicacionDetailRoute
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -40,6 +41,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object Principal
 @Serializable data class DetalleCerveza(val cervezaId: String)
+@Serializable data class DetallePublicacion(val publicacionId: String)
 
 @Serializable data class FormularioCerveza(val cervezaId: String? = null)
 
@@ -102,6 +104,13 @@ private fun MainNavHost() {
             PantallaPrincipal(
                 onCervezaClick = { navController.navigate(DetalleCerveza(it)) },
                 onAgregarClick = { navController.navigate(FormularioCerveza()) },
+                onPublicacionClick = { navController.navigate(DetallePublicacion(it)) },
+            )
+        }
+        composable<DetallePublicacion> {
+            PublicacionDetailRoute(
+                onBack = { navController.popBackStack() },
+                onVerMiCerveza = { navController.navigate(DetalleCerveza(it)) },
             )
         }
         composable<DetalleCerveza> {

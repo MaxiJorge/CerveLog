@@ -24,11 +24,11 @@ Además, las cervezas con ubicación aparecen en un **mapa comunitario** donde v
 | RF5 · Geolocalización | Ubicación actual con FusedLocationProvider, o tocando el mapa para elegir otro punto. Se muestra en Google Maps y se guarda con cada cerveza |
 | RF6 · Cámara | Foto con la cámara o desde la galería |
 | RF7 · Notificaciones | Notificación local cuando otro usuario registra una cerveza cerca |
-| Opcional · Funcionalidad adicional | Mapa comunitario con carga por zona visible, agrupado de marcadores y detalle de la cerveza al tocar un marcador, y perfil con estadísticas |
+| Opcional · Funcionalidad adicional | Mapa comunitario con el nombre de cada cerveza, filtros (puntuación mínima, estilo y graduación), carga por zona visible y agrupado de marcadores. Cada cerveza tiene un detalle con la ruta por calles desde tu ubicación (Routes API) y un botón para abrirla en Google Maps. Perfil con estadísticas y modo oscuro (sistema, claro u oscuro). Icono propio de la app |
 
 ## Tecnologías
 
-Kotlin · Jetpack Compose (Material 3) · Navigation Compose con rutas tipadas · MVVM con StateFlow y corrutinas sobre arquitectura limpia · Firebase Authentication · Cloud Firestore · Google Play Services Location · Google Maps (maps-compose) · JUnit + kotlinx-coroutines-test.
+Kotlin · Jetpack Compose (Material 3) · Navigation Compose con rutas tipadas · MVVM con StateFlow y corrutinas sobre arquitectura limpia · Firebase Authentication · Cloud Firestore · Google Play Services Location · Google Maps (maps-compose) · Routes API de Google · JUnit + kotlinx-coroutines-test.
 
 ## Estructura
 
@@ -38,7 +38,7 @@ Arquitectura limpia en tres capas: la interfaz y los datos dependen del dominio,
 domain/                 Módulo Kotlin puro: modelos, AppResult/DomainError, interfaces de repositorio y casos de uso
 app/src/main/java/com/jorge/cervelog
 ├── di                  AppContainer: crea los repositorios y los casos de uso
-├── data                Documentos de Firestore, mappers y repositorios (Firebase, ubicación y fotos)
+├── data                Documentos de Firestore, mappers y repositorios (Firebase, ubicación, fotos y rutas)
 ├── notificaciones      Aviso de cervezas cercanas (RF7)
 └── ui                  Pantallas (auth, cervezas, mapa, perfil), componentes, navegación y tema
 firestore.rules         Reglas de seguridad de Firestore
@@ -75,13 +75,13 @@ El repositorio no incluye `google-services.json` ni la API key de Google Maps po
 4. **Crear Firestore y publicar las reglas.** En Firestore Database, crea la base de datos en modo producción. En la pestaña «Reglas», pega el contenido de [`firestore.rules`](firestore.rules) y pulsa «Publicar». También se puede hacer con `firebase deploy --only firestore:rules`.
 5. **Copiar `google-services.json`** a la carpeta `app/` del proyecto.
 6. **Configurar la API key de Google Maps.**
-   - En la [consola de Google Cloud](https://console.cloud.google.com), dentro del mismo proyecto, activa **Maps SDK for Android**.
-   - En «Credenciales», crea una API key.
+   - En la [consola de Google Cloud](https://console.cloud.google.com), dentro del mismo proyecto, activa **Maps SDK for Android** y **Routes API**.
+   - En «Credenciales», crea una API key. Si le pones restricción de APIs, incluye las dos.
    - Añádela al archivo `local.properties` de la raíz del proyecto (Android Studio lo crea al abrir el proyecto):
      ```properties
      MAPS_API_KEY=tu_api_key
      ```
-     Gradle la inyecta en el `AndroidManifest.xml`. Sin ella, la app funciona, pero los mapas aparecen en gris.
+     Gradle la inyecta en el `AndroidManifest.xml` (para el mapa) y en `BuildConfig` (para pedir las rutas). Sin ella, la app funciona, pero los mapas aparecen en gris. Sin la Routes API, el detalle del mapa no dibuja la ruta, pero el botón «Abrir en Google Maps» sigue funcionando.
 7. **Ejecutar.** Abre el proyecto en Android Studio, espera a que sincronice Gradle y pulsa ▶ Run.
 
 ### Uso en el emulador

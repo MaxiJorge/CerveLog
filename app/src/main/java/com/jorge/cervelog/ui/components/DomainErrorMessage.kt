@@ -32,6 +32,7 @@ fun DomainError.asMessage(): String = stringResource(
         DomainError.SinPermisoUbicacion -> R.string.error_sin_permiso_ubicacion
         DomainError.FotoNoValida -> R.string.error_foto
         DomainError.CamaraNoDisponible -> R.string.error_camara
+        DomainError.RutaNoDisponible -> R.string.error_ruta_no_disponible
         is DomainError.Desconocido -> R.string.error_desconocido
     },
 )

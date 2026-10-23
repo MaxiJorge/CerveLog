@@ -37,6 +37,7 @@ sealed interface DomainError {
     data object SinPermisoUbicacion : DomainError
     data object FotoNoValida : DomainError
     data object CamaraNoDisponible : DomainError
+    data object RutaNoDisponible : DomainError
 
     data class Desconocido(val mensaje: String?) : DomainError
 }

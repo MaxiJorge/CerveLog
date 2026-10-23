@@ -10,8 +10,11 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.jorge.cervelog.domain.model.AppResult
 import com.jorge.cervelog.domain.model.DomainError
 import kotlinx.coroutines.CancellationException
+import java.io.IOException
 
 class SinSesionException : IllegalStateException("No hay un usuario autenticado")
+
+class RutaNoDisponibleException : IllegalStateException("No se pudo calcular la ruta")
 
 fun Throwable.toDomainError(): DomainError = when (this) {
     // Va primero porque hereda de FirebaseAuthInvalidCredentialsException
@@ -29,6 +32,8 @@ fun Throwable.toDomainError(): DomainError = when (this) {
         else -> DomainError.Desconocido(message)
     }
     is SinSesionException -> DomainError.SinSesion
+    is RutaNoDisponibleException -> DomainError.RutaNoDisponible
+    is IOException -> DomainError.SinConexion
     is SecurityException -> DomainError.SinPermisoUbicacion
     else -> DomainError.Desconocido(message)
 }

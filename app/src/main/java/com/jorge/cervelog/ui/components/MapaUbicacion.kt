@@ -13,16 +13,18 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.compose.ComposeMapColorScheme
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import com.jorge.cervelog.domain.model.Coordenadas
 import com.jorge.cervelog.domain.model.Zona
+import com.jorge.cervelog.ui.theme.AppTheme
 
 const val ZOOM_CIUDAD = 11f
 const val ZOOM_BARRIO = 13f
-private const val ZOOM_CALLE = 16f
+const val ZOOM_CALLE = 16f
 
 val BUENOS_AIRES = LatLng(-34.6037, -58.3816)
 
@@ -63,6 +65,7 @@ fun MapaUbicacion(
             .height(200.dp)
             .clip(RoundedCornerShape(12.dp)),
         cameraPositionState = cameraPositionState,
+        mapColorScheme = if (AppTheme.oscuro) ComposeMapColorScheme.DARK else ComposeMapColorScheme.LIGHT,
         onMapClick = onClick?.let { { latLng -> it(latLng.toCoordenadas()) } },
     ) {
         if (posicion != null) {

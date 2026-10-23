@@ -8,8 +8,10 @@ import com.jorge.cervelog.di.contenedor
 import com.jorge.cervelog.domain.model.AppResult
 import com.jorge.cervelog.domain.model.Coordenadas
 import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.domain.model.FiltroMapa
 import com.jorge.cervelog.domain.model.Publicacion
 import com.jorge.cervelog.domain.model.Zona
+import com.jorge.cervelog.domain.model.estilos
 import com.jorge.cervelog.domain.usecase.BuscarPublicacionesEnZonaUseCase
 import com.jorge.cervelog.domain.usecase.ObtenerUbicacionActualUseCase
 import com.jorge.cervelog.domain.usecase.ObtenerUsuarioActualUseCase
@@ -22,9 +24,16 @@ import kotlinx.coroutines.launch
 
 data class MapaComunitarioUiState(
     val publicaciones: List<Publicacion> = emptyList(),
+    val filtro: FiltroMapa = FiltroMapa(),
     val cargando: Boolean = false,
     val error: DomainError? = null,
-)
+) {
+    // Se filtra lo ya descargado, sin volver a consultar Firestore
+    val visibles: List<Publicacion> get() = publicaciones.filter(filtro::cumple)
+
+    // Los elegidos se mantienen aunque ya no haya ninguno en la zona
+    val estilosDisponibles: List<String> get() = (publicaciones.estilos() + filtro.estilos).distinctBy { it.lowercase() }
+}
 
 class MapaComunitarioViewModel(
     private val buscarEnZona: BuscarPublicacionesEnZonaUseCase,
@@ -74,6 +83,8 @@ class MapaComunitarioViewModel(
             }
         }
     }
+
+    fun onFiltroCambiado(filtro: FiltroMapa) = _uiState.update { it.copy(filtro = filtro) }
 
     fun onErrorMostrado() = _uiState.update { it.copy(error = null) }
 

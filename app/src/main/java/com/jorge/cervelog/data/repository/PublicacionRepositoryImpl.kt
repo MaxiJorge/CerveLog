@@ -9,6 +9,7 @@ import com.jorge.cervelog.data.mapper.resultadoDe
 import com.jorge.cervelog.data.mapper.toDomain
 import com.jorge.cervelog.data.mapper.toTimestamp
 import com.jorge.cervelog.domain.model.AppResult
+import com.jorge.cervelog.domain.model.DomainError
 import com.jorge.cervelog.domain.model.Publicacion
 import com.jorge.cervelog.domain.model.Zona
 import com.jorge.cervelog.domain.repository.PublicacionRepository
@@ -33,6 +34,17 @@ class PublicacionRepositoryImpl(private val db: FirebaseFirestore) : Publicacion
             .toObjects(PublicacionDocumento::class.java)
             .map { it.toDomain() }
             .filter { zona.contiene(it.ubicacion) }
+    }
+
+    override suspend fun obtenerPublicacion(id: String): AppResult<Publicacion> {
+        val resultado = resultadoDe {
+            db.collection(COLECCION_PUBLICACIONES).document(id).get().await().toObject(PublicacionDocumento::class.java)
+        }
+        return when (resultado) {
+            is AppResult.Success -> resultado.data?.let { AppResult.Success(it.toDomain()) }
+                ?: AppResult.Error(DomainError.NoEncontrada)
+            is AppResult.Error -> resultado
+        }
     }
 
     override fun observarNuevas(desde: Instant): Flow<Publicacion> =

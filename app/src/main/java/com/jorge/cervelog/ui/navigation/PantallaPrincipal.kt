@@ -40,6 +40,7 @@ private enum class Pestana(@StringRes val titulo: Int, val icono: ImageVector) {
 fun PantallaPrincipal(
     onCervezaClick: (String) -> Unit,
     onAgregarClick: () -> Unit,
+    onPublicacionClick: (String) -> Unit,
 ) {
     var pestana by rememberSaveable { mutableStateOf(Pestana.CERVEZAS) }
     var mapaAbierto by rememberSaveable { mutableStateOf(false) }
@@ -70,7 +71,7 @@ fun PantallaPrincipal(
                 .padding(padding)
                 .consumeWindowInsets(padding),
         ) {
-            if (mapaAbierto) MapaComunitarioRoute(onVerMiCerveza = onCervezaClick)
+            if (mapaAbierto) MapaComunitarioRoute(onVerMiCerveza = onCervezaClick, onVerDetalle = onPublicacionClick)
             when (pestana) {
                 Pestana.CERVEZAS -> CervezasListRoute(onCervezaClick, onAgregarClick)
                 Pestana.PERFIL -> PerfilRoute()

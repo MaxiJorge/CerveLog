@@ -5,18 +5,25 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jorge.cervelog.BuildConfig
 import com.jorge.cervelog.CerveLogApp
 import com.jorge.cervelog.data.repository.AuthRepositoryImpl
 import com.jorge.cervelog.data.repository.CervezaRepositoryImpl
 import com.jorge.cervelog.data.repository.FotoRepositoryImpl
+import com.jorge.cervelog.data.repository.PreferenciasRepositoryImpl
 import com.jorge.cervelog.data.repository.PublicacionRepositoryImpl
+import com.jorge.cervelog.data.repository.RutaRepositoryImpl
 import com.jorge.cervelog.data.repository.UbicacionRepositoryImpl
 import com.jorge.cervelog.domain.repository.AuthRepository
 import com.jorge.cervelog.domain.repository.CervezaRepository
 import com.jorge.cervelog.domain.repository.FotoRepository
+import com.jorge.cervelog.domain.repository.PreferenciasRepository
 import com.jorge.cervelog.domain.repository.PublicacionRepository
+import com.jorge.cervelog.domain.repository.RutaRepository
 import com.jorge.cervelog.domain.repository.UbicacionRepository
 import com.jorge.cervelog.domain.usecase.BuscarPublicacionesEnZonaUseCase
+import com.jorge.cervelog.domain.usecase.CalcularRutaUseCase
+import com.jorge.cervelog.domain.usecase.CambiarTemaUseCase
 import com.jorge.cervelog.domain.usecase.CerrarSesionUseCase
 import com.jorge.cervelog.domain.usecase.ComprobarVerificacionUseCase
 import com.jorge.cervelog.domain.usecase.EliminarCervezaUseCase
@@ -28,7 +35,9 @@ import com.jorge.cervelog.domain.usecase.ObservarCervezasCercanasUseCase
 import com.jorge.cervelog.domain.usecase.ObservarCervezasUseCase
 import com.jorge.cervelog.domain.usecase.ObservarEstadisticasUseCase
 import com.jorge.cervelog.domain.usecase.ObservarSesionUseCase
+import com.jorge.cervelog.domain.usecase.ObservarTemaUseCase
 import com.jorge.cervelog.domain.usecase.ObtenerCervezaUseCase
+import com.jorge.cervelog.domain.usecase.ObtenerPublicacionUseCase
 import com.jorge.cervelog.domain.usecase.ObtenerUbicacionActualUseCase
 import com.jorge.cervelog.domain.usecase.ObtenerUsuarioActualUseCase
 import com.jorge.cervelog.domain.usecase.ProcesarFotoUseCase
@@ -46,6 +55,8 @@ class AppContainer(context: Context) {
     private val publicacionRepository: PublicacionRepository = PublicacionRepositoryImpl(db)
     private val ubicacionRepository: UbicacionRepository = UbicacionRepositoryImpl(context)
     private val fotoRepository: FotoRepository = FotoRepositoryImpl(context)
+    private val preferenciasRepository: PreferenciasRepository = PreferenciasRepositoryImpl(context)
+    private val rutaRepository: RutaRepository = RutaRepositoryImpl(context, BuildConfig.MAPS_API_KEY)
 
     val iniciarSesion get() = IniciarSesionUseCase(authRepository)
     val iniciarSesionConGoogle get() = IniciarSesionConGoogleUseCase(authRepository)
@@ -64,10 +75,15 @@ class AppContainer(context: Context) {
     val observarEstadisticas get() = ObservarEstadisticasUseCase(cervezaRepository)
 
     val buscarPublicacionesEnZona get() = BuscarPublicacionesEnZonaUseCase(publicacionRepository)
+    val obtenerPublicacion get() = ObtenerPublicacionUseCase(publicacionRepository)
+    val calcularRuta get() = CalcularRutaUseCase(rutaRepository)
     val obtenerUbicacionActual get() = ObtenerUbicacionActualUseCase(ubicacionRepository)
     val procesarFoto get() = ProcesarFotoUseCase(fotoRepository)
     val observarCervezasCercanas get() =
         ObservarCervezasCercanasUseCase(publicacionRepository, ubicacionRepository, authRepository)
+
+    val observarTema get() = ObservarTemaUseCase(preferenciasRepository)
+    val cambiarTema get() = CambiarTemaUseCase(preferenciasRepository)
 }
 
 fun CreationExtras.contenedor(): AppContainer = (checkNotNull(this[APPLICATION_KEY]) as CerveLogApp).container

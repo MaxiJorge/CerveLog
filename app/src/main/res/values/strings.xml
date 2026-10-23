@@ -76,11 +76,41 @@
     <string name="mapa_cervecero">Mapa cervecero</string>
     <string name="registrada_por">Registrada por</string>
     <string name="ver_mi_cerveza">Ver mi cerveza</string>
+    <string name="ver_detalle">Ver detalle y cómo llegar</string>
+    <string name="como_llegar">Cómo llegar</string>
+    <string name="abrir_en_google_maps">Abrir en Google Maps</string>
+    <string name="distancia">Distancia</string>
+    <string name="a_pie">A pie</string>
+    <string name="en_coche">En coche</string>
+    <string name="calculando_ruta">Calculando la ruta desde tu ubicación…</string>
+    <string name="ruta_sin_permiso">Permite el acceso a tu ubicación para ver la ruta en el mapa</string>
+    <string name="publicacion_no_existe">Esta cerveza ya no está en el mapa</string>
+    <string name="filtros">Filtros</string>
+    <string name="limpiar">Limpiar</string>
+    <string name="puntuacion_minima">Puntuación mínima</string>
+    <string name="filtro_todas">Todas</string>
+    <string name="filtro_3_o_mas">★ 3 o más</string>
+    <string name="filtro_4_o_mas">★ 4 o más</string>
+    <string name="filtro_5">★ 5</string>
+    <string name="sin_estilos">No hay cervezas con estilo en esta zona</string>
+    <string name="graduacion">Graduación</string>
+    <string name="graduacion_suave">Suave (menos de 5 %)</string>
+    <string name="graduacion_media">Media (de 5 a 7 %)</string>
+    <string name="graduacion_fuerte">Fuerte (7 % o más)</string>
+    <string name="sin_resultados_filtros">Ninguna cerveza de esta zona cumple los filtros</string>
+    <plurals name="ver_cervezas">
+        <item quantity="one">Ver %1$d cerveza</item>
+        <item quantity="other">Ver %1$d cervezas</item>
+    </plurals>
 
     <!-- Perfil -->
     <string name="mi_perfil">Mi perfil</string>
     <string name="en_el_mapa">En el mapa</string>
     <string name="nota_media">Nota media</string>
+    <string name="apariencia">Apariencia</string>
+    <string name="tema_sistema">Sistema</string>
+    <string name="tema_claro">Claro</string>
+    <string name="tema_oscuro">Oscuro</string>
     <string name="cerrar_sesion">Cerrar sesión</string>
     <string name="cerrar_sesion_texto">¿Quieres salir de tu cuenta?</string>
     <string name="salir">Salir</string>
@@ -117,5 +147,6 @@
     <string name="error_sin_permiso_ubicacion">Sin permiso de ubicación no podemos registrar dónde la probaste</string>
     <string name="error_foto">No pudimos cargar la foto</string>
     <string name="error_camara">No hay ninguna app de cámara disponible</string>
+    <string name="error_ruta_no_disponible">No pudimos calcular la ruta. Puedes abrirla en Google Maps.</string>
     <string name="error_desconocido">Ha ocurrido un error inesperado. Inténtalo de nuevo.</string>
 </resources>

@@ -4,13 +4,16 @@ import com.jorge.cervelog.domain.model.AppResult
 import com.jorge.cervelog.domain.model.Cerveza
 import com.jorge.cervelog.domain.model.Coordenadas
 import com.jorge.cervelog.domain.model.DomainError
+import com.jorge.cervelog.domain.model.ModoTransporte
 import com.jorge.cervelog.domain.model.Publicacion
+import com.jorge.cervelog.domain.model.Ruta
 import com.jorge.cervelog.domain.model.Usuario
 import com.jorge.cervelog.domain.model.Zona
 import com.jorge.cervelog.domain.repository.AuthRepository
 import com.jorge.cervelog.domain.repository.CervezaRepository
 import com.jorge.cervelog.domain.repository.FotoRepository
 import com.jorge.cervelog.domain.repository.PublicacionRepository
+import com.jorge.cervelog.domain.repository.RutaRepository
 import com.jorge.cervelog.domain.repository.UbicacionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import java.time.Duration
 import java.time.Instant
 
 // Repositorios en memoria que se comportan como los reales
@@ -110,6 +114,9 @@ class FakePublicacionRepository(var guardadas: List<Publicacion> = emptyList()) 
     override suspend fun buscarEnZona(zona: Zona): AppResult<List<Publicacion>> =
         AppResult.Success(guardadas.filter { zona.contiene(it.ubicacion) })
 
+    override suspend fun obtenerPublicacion(id: String): AppResult<Publicacion> =
+        guardadas.find { it.id == id }?.let { AppResult.Success(it) } ?: AppResult.Error(DomainError.NoEncontrada)
+
     override fun observarNuevas(desde: Instant): Flow<Publicacion> = nuevas
 }
 
@@ -120,4 +127,17 @@ class FakeUbicacionRepository(var resultado: AppResult<Coordenadas> = AppResult.
 
 class FakeFotoRepository(var resultado: AppResult<String> = AppResult.Success("Zm90bw==")) : FotoRepository {
     override suspend fun procesarFoto(uri: String): AppResult<String> = resultado
+}
+
+class FakeRutaRepository(var error: DomainError? = null) : RutaRepository {
+    var modoPedido: ModoTransporte? = null
+        private set
+
+    // Ruta en línea recta, suficiente para los tests
+    override suspend fun calcularRuta(origen: Coordenadas, destino: Coordenadas, modo: ModoTransporte): AppResult<Ruta> {
+        modoPedido = modo
+        error?.let { return AppResult.Error(it) }
+        val metros = origen.distanciaMetrosHasta(destino).toInt()
+        return AppResult.Success(Ruta(listOf(origen, destino), metros, Duration.ofMinutes(metros / 80L), modo))
+    }
 }
